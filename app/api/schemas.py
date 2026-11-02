@@ -114,4 +114,22 @@ class SettingsUpdateRequest(BaseModel):
     top_k: Optional[int] = None
     similarity_threshold: Optional[float] = None
     enable_reranker: Optional[bool] = None
+    rerank_top_k: Optional[int] = None
     temperature: Optional[float] = None
+
+
+class SettingsResponse(BaseModel):
+    llm_model: str
+    embedding_model: str
+    chunk_size: int
+    chunk_overlap: int
+    chunk_strategy: str
+    retrieval_strategy: str
+    top_k: int
+    similarity_threshold: float
+    enable_reranker: bool
+    reranker_model: str
+    rerank_top_k: int
+    temperature: float
+    max_tokens: int
+    installed_models: List[str] = Field(default_factory=list)

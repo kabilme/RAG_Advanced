@@ -132,8 +132,8 @@ if menu == "Dashboard":
 
     total_docs = health_data.get("total_documents", 0) if health_data else 0
     total_vectors = health_data.get("indexed_vectors", 0) if health_data else 0
-    active_llm = health_data.get("configured_model", "llama3.2") if health_data else "Unknown"
-    active_emb = health_data.get("embedding_model", "nomic-embed-text") if health_data else "Unknown"
+    active_llm = health_data.get("configured_model", "Unknown") if health_data else "Unknown"
+    active_emb = health_data.get("embedding_model", "Unknown") if health_data else "Unknown"
     ollama_ok = health_data.get("ollama_connected", False) if health_data else False
 
     col1, col2, col3, col4 = st.columns(4)
@@ -417,33 +417,113 @@ elif menu == "Settings":
     st.header("⚙️ Application Configuration")
     st.caption("Configure local models, chunking strategies, retrieval thresholds, and inference parameters.")
 
+    current_settings = api_get("/settings") or {}
+    installed_models = current_settings.get("installed_models", [])
+    configured_llm = current_settings.get("llm_model") or (health.get("configured_model") if health else "qwen2.5:7b")
+
+    # Filter installed models to LLMs (excluding embedding-only models)
+    llm_options = [m for m in installed_models if "embed" not in m.lower()]
+    if configured_llm and configured_llm not in llm_options:
+        llm_options.insert(0, configured_llm)
+    if not llm_options:
+        llm_options = [configured_llm or "qwen2.5:7b"]
+
     with st.form("settings_form"):
         st.subheader("Model Infrastructure")
         col1, col2 = st.columns(2)
         with col1:
-            llm_model = st.text_input("Local Ollama Generation Model", "llama3.2")
+            selected_idx = llm_options.index(configured_llm) if configured_llm in llm_options else 0
+            selected_llm = st.selectbox(
+                "Local Ollama Generation Model",
+                options=llm_options,
+                index=selected_idx,
+                help="Select from models detected in your local Ollama instance."
+            )
+            custom_model = st.text_input(
+                "Or specify custom model name (optional)",
+                value="",
+                placeholder="e.g. mistral:latest, llama3.2:3b",
+                help="Leave empty to use the dropdown selection above."
+            )
+            final_llm = custom_model.strip() if custom_model.strip() else selected_llm
         with col2:
-            emb_model = st.text_input("Embedding Model", "nomic-embed-text")
+            emb_model = st.text_input(
+                "Embedding Model",
+                value=current_settings.get("embedding_model", "nomic-embed-text"),
+                help="Requires local Ollama pull or SentenceTransformers local model."
+            )
+            temperature = st.slider(
+                "LLM Temperature",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(current_settings.get("temperature", 0.1)),
+                step=0.05,
+                help="Lower values produce more deterministic, factual responses."
+            )
 
         st.subheader("Chunking Strategy")
         c_col1, c_col2 = st.columns(2)
         with c_col1:
-            chunk_size = st.number_input("Chunk Size (characters)", value=1000, step=100)
+            chunk_size = st.number_input(
+                "Chunk Size (characters)",
+                value=int(current_settings.get("chunk_size", 1000)),
+                step=100
+            )
         with c_col2:
-            chunk_overlap = st.number_input("Chunk Overlap (characters)", value=150, step=25)
+            chunk_overlap = st.number_input(
+                "Chunk Overlap (characters)",
+                value=int(current_settings.get("chunk_overlap", 150)),
+                step=25
+            )
 
         st.subheader("Retrieval & Reranking")
         r_col1, r_col2 = st.columns(2)
         with r_col1:
-            top_k = st.number_input("Top K Retrieval Candidates", value=10, min_value=1, max_value=50)
-            sim_thresh = st.slider("Similarity Threshold", min_value=0.0, max_value=1.0, value=0.30, step=0.05)
+            top_k = st.number_input(
+                "Top K Retrieval Candidates",
+                value=int(current_settings.get("top_k", 15)),
+                min_value=1,
+                max_value=50
+            )
+            sim_thresh = st.slider(
+                "Similarity Threshold",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(current_settings.get("similarity_threshold", 0.30)),
+                step=0.05
+            )
         with r_col2:
-            enable_rerank = st.checkbox("Enable Cross-Encoder Reranking", value=True)
-            rerank_k = st.number_input("Rerank Top K", value=5, min_value=1, max_value=20)
+            enable_rerank = st.checkbox(
+                "Enable Cross-Encoder Reranking",
+                value=bool(current_settings.get("enable_reranker", True))
+            )
+            rerank_k = st.number_input(
+                "Rerank Top K",
+                value=int(current_settings.get("rerank_top_k", 8)),
+                min_value=1,
+                max_value=20
+            )
 
-        submitted = st.form_submit_button("Save & Validate Settings")
+        submitted = st.form_submit_button("💾 Save & Apply Settings", type="primary")
         if submitted:
-            st.success("Settings validated. (Note: Changing the embedding model will require re-indexing existing documents).")
+            payload = {
+                "llm_model": final_llm,
+                "embedding_model": emb_model,
+                "temperature": float(temperature),
+                "chunk_size": int(chunk_size),
+                "chunk_overlap": int(chunk_overlap),
+                "top_k": int(top_k),
+                "similarity_threshold": float(sim_thresh),
+                "enable_reranker": bool(enable_rerank),
+                "rerank_top_k": int(rerank_k),
+            }
+            save_resp = api_post("/settings", payload)
+            if save_resp:
+                st.success(f"✅ Settings successfully updated! Active Generation Model: **{save_resp.get('llm_model')}**")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("Failed to update settings. Verify backend is running.")
 
 
 # -------------------------------------------------------------

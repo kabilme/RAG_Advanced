@@ -78,6 +78,54 @@ class Settings(BaseSettings):
             if path_attr:
                 Path(path_attr).mkdir(parents=True, exist_ok=True)
 
+    def update_settings(self, updates: dict) -> None:
+        """Updates in-memory settings and persists them to the .env file."""
+        for k, v in updates.items():
+            if v is not None:
+                attr = k.upper()
+                if hasattr(self, attr):
+                    cur_val = getattr(self, attr)
+                    if isinstance(cur_val, bool) and isinstance(v, str):
+                        casted = v.lower() in ("true", "1", "yes")
+                    elif isinstance(cur_val, int) and not isinstance(v, bool):
+                        casted = int(v)
+                    elif isinstance(cur_val, float):
+                        casted = float(v)
+                    else:
+                        casted = v
+                    setattr(self, attr, casted)
+
+        env_path = Path(".env")
+        lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+
+        updated_keys = set()
+        new_lines = []
+        for line in lines:
+            trimmed = line.strip()
+            if trimmed and not trimmed.startswith("#") and "=" in trimmed:
+                key, _ = trimmed.split("=", 1)
+                key_clean = key.strip()
+                match_val = None
+                for u_k, u_v in updates.items():
+                    if u_v is not None and u_k.upper() == key_clean:
+                        match_val = str(u_v)
+                        break
+                if match_val is not None:
+                    new_lines.append(f"{key_clean}={match_val}")
+                    updated_keys.add(key_clean)
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+
+        for u_k, u_v in updates.items():
+            if u_v is not None:
+                u_key = u_k.upper()
+                if u_key not in updated_keys and hasattr(self, u_key):
+                    new_lines.append(f"{u_key}={u_v}")
+
+        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
 
 # Global singleton settings instance
 settings = Settings()

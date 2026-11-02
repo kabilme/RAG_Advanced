@@ -12,6 +12,7 @@ from app.api.routes import (
     documents_router,
     chat_router,
     retrieval_router,
+    settings_router,
 )
 
 
@@ -47,6 +48,7 @@ app.include_router(health_router)
 app.include_router(documents_router)
 app.include_router(chat_router)
 app.include_router(retrieval_router)
+app.include_router(settings_router)
 
 
 @app.get("/")
