@@ -465,11 +465,11 @@ elif menu == "Settings":
             )
             max_tokens = st.number_input(
                 "Max Generation Tokens",
-                value=int(current_settings.get("max_tokens", 512)),
-                min_value=128,
-                max_value=2048,
+                value=int(current_settings.get("max_tokens", 1536)),
+                min_value=256,
+                max_value=4096,
                 step=128,
-                help="Shorter answers (e.g. 512) finish significantly faster on CPU."
+                help="Maximum length of generated response. 1536 tokens ensures complete, detailed explanations without cutting off."
             )
 
         st.subheader("Chunking Strategy")

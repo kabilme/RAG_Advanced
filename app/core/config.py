@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama3.2"
     EMBEDDING_MODEL: str = "nomic-embed-text"
     TEMPERATURE: float = 0.1
-    MAX_TOKENS: int = 512
+    MAX_TOKENS: int = 1536
     NUM_THREADS: int = 6
-    NUM_CTX: int = 3072
+    NUM_CTX: int = 6144
     TIMEOUT_SECONDS: int = 120
 
     # Storage Paths
