@@ -116,6 +116,7 @@ class SettingsUpdateRequest(BaseModel):
     enable_reranker: Optional[bool] = None
     rerank_top_k: Optional[int] = None
     temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
 
 
 class SettingsResponse(BaseModel):

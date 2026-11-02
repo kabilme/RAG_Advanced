@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama3.2"
     EMBEDDING_MODEL: str = "nomic-embed-text"
     TEMPERATURE: float = 0.1
-    MAX_TOKENS: int = 2048
+    MAX_TOKENS: int = 512
+    NUM_THREADS: int = 6
+    NUM_CTX: int = 3072
     TIMEOUT_SECONDS: int = 120
 
     # Storage Paths
@@ -58,7 +60,7 @@ class Settings(BaseSettings):
     RRF_K: int = 60
     ENABLE_RERANKER: bool = True
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    RERANK_TOP_K: int = 8
+    RERANK_TOP_K: int = 5
     CONTEXT_COMPRESSION: bool = True
 
     # Security & Processing

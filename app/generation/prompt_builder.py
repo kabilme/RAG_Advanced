@@ -62,9 +62,9 @@ class PromptBuilder:
         lines = ["=== RETRIEVED DOCUMENT CONTEXT (UNTRUSTED DATA) ==="]
         for idx, chunk in enumerate(chunks, start=1):
             citation_tag = chunk.to_citation()
-            # If parent text is available and longer, supply it to provide broader background
-            text_to_show = chunk.parent_text if chunk.parent_text and len(chunk.parent_text) > len(chunk.text) else chunk.text
-            lines.append(f"\n[Context Block {idx} | {citation_tag}]\n{text_to_show}")
+            # Prioritize concise, targeted chunk text for fast CPU prefilling; only expand if chunk is very short (<250 chars)
+            text_to_show = chunk.parent_text if (chunk.parent_text and len(chunk.text) < 250) else chunk.text
+            lines.append(f"\n[Context Block {idx} | {citation_tag}]\n{text_to_show.strip()}")
             lines.append("--------------------------------------------------")
         lines.append("=== END OF RETRIEVED CONTEXT ===")
         return "\n".join(lines)

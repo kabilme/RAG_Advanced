@@ -89,10 +89,7 @@ class OllamaClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        options = {
-            "temperature": temperature if temperature is not None else self.temperature,
-            "num_predict": max_tokens or self.max_tokens,
-        }
+        options = self._build_options(temperature, max_tokens)
 
         try:
             logger.debug("Dispatching generation request to Ollama (model: %s)", self.model_name)
@@ -119,6 +116,19 @@ class OllamaClient:
                 ) from exc
             raise RAGException(f"Ollama inference error: {exc}") from exc
 
+    def _build_options(
+        self,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Constructs CPU-optimized inference options for Ollama."""
+        return {
+            "temperature": temperature if temperature is not None else self.temperature,
+            "num_predict": max_tokens or self.max_tokens,
+            "num_thread": getattr(settings, "NUM_THREADS", 6),
+            "num_ctx": getattr(settings, "NUM_CTX", 3072),
+        }
+
     def stream_generate(
         self,
         prompt: str,
@@ -135,10 +145,7 @@ class OllamaClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        options = {
-            "temperature": temperature if temperature is not None else self.temperature,
-            "num_predict": max_tokens or self.max_tokens,
-        }
+        options = self._build_options(temperature, max_tokens)
 
         try:
             logger.debug("Starting streaming generation with Ollama (model: %s)", self.model_name)
