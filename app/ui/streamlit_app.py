@@ -301,41 +301,75 @@ elif menu == "Grounded Chat":
         with st.chat_message("user"):
             st.markdown(user_query)
 
-        # Assistant generation
+        # Assistant generation with real-time token streaming
         with st.chat_message("assistant"):
-            with st.spinner("Retrieving evidence and generating grounded response..."):
-                payload = {
-                    "question": user_query,
-                    "session_id": st.session_state.session_id,
-                }
-                resp = api_post("/chat/query", payload)
+            payload = {
+                "question": user_query,
+                "session_id": st.session_state.session_id,
+            }
+            sources_container = {"sources": []}
+            status_placeholder = st.empty()
+            status_placeholder.markdown("🔍 *Searching documents & retrieving evidence...*")
 
-                if resp:
-                    answer = resp.get("answer", "")
-                    citations = resp.get("citations", [])
-                    source_cards = resp.get("source_cards", [])
-                    is_abstained = resp.get("is_abstained", False)
+            def stream_response():
+                first_token = True
+                try:
+                    resp = requests.post(
+                        f"{API_BASE_URL}/chat/stream",
+                        json=payload,
+                        stream=True,
+                        timeout=180,
+                    )
+                    if resp.status_code != 200:
+                        status_placeholder.empty()
+                        yield f"⚠️ Server returned error {resp.status_code}: {resp.text}"
+                        return
 
-                    st.markdown(answer)
+                    for line in resp.iter_lines():
+                        if line:
+                            decoded = line.decode("utf-8")
+                            if decoded.startswith("data: "):
+                                try:
+                                    event = json.loads(decoded[6:])
+                                    evt_type = event.get("type")
+                                    if evt_type == "sources":
+                                        sources_container["sources"] = event.get("data", [])
+                                    elif evt_type == "token":
+                                        if first_token:
+                                            status_placeholder.empty()
+                                            first_token = False
+                                        yield event.get("content", "")
+                                    elif evt_type == "error":
+                                        status_placeholder.empty()
+                                        yield f"\n⚠️ Error: {event.get('message', 'Unknown error')}"
+                                except json.JSONDecodeError:
+                                    continue
+                except requests.exceptions.RequestException as e:
+                    status_placeholder.empty()
+                    yield f"⚠️ Network error connecting to backend: {e}"
+                finally:
+                    status_placeholder.empty()
 
-                    if source_cards:
-                        with st.expander(f"📚 Retrieved Evidence & Citations ({len(source_cards)})"):
-                            for sc in source_cards:
-                                score_badge = f"Relevance: {sc['similarity_score']:.2f}"
-                                st.markdown(f"""
-                                <div class="source-box">
-                                    <span class="citation-tag">{sc['citation']}</span> <span style="font-size: 12px; color: #94a3b8;">({score_badge})</span>
-                                    <p style="margin-top: 6px; font-size: 13px; color: #cbd5e1;">{sc['snippet']}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
+            full_answer = st.write_stream(stream_response)
+            if isinstance(full_answer, list):
+                full_answer = "".join(str(item) for item in full_answer)
 
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": answer,
-                        "sources": source_cards or citations,
-                    })
-                else:
-                    st.error("Failed to generate response. Ensure the backend and Ollama are running.")
+            if sources_container.get("sources"):
+                with st.expander(f"📚 Retrieved Evidence & Citations ({len(sources_container['sources'])})"):
+                    for sc in sources_container["sources"]:
+                        score_badge = f"Relevance: {sc.get('similarity_score', 0):.2f}"
+                        st.markdown(f"""
+                        <div class="source-box">
+                            <span class="citation-tag">{sc.get('citation', 'Source')}</span> <span style="font-size: 12px; color: #94a3b8;">({score_badge})</span>
+                            <p style="margin-top: 6px; font-size: 13px; color: #cbd5e1;">{sc.get('snippet', '')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_answer,
+                "sources": sources_container.get("sources", []),
+            })
 
 
 # -------------------------------------------------------------
