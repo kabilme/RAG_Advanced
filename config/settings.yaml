@@ -1,0 +1,45 @@
+# Local Advanced RAG System Configuration
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+  reload: false
+
+ollama:
+  base_url: "http://localhost:11434"
+  llm_model: "llama3.2"
+  embedding_model: "nomic-embed-text"
+  temperature: 0.1
+  max_tokens: 2048
+  timeout_seconds: 120
+
+storage:
+  vector_db_path: "./data/chroma_db"
+  upload_dir: "./data/uploads"
+  processed_dir: "./data/processed"
+  evaluation_dir: "./data/evaluations"
+  sqlite_db_path: "./data/rag_app.db"
+  max_upload_size_mb: 50
+
+chunking:
+  strategy: "structure_aware"
+  chunk_size: 1000
+  chunk_overlap: 150
+
+retrieval:
+  strategy: "hybrid"  # semantic, keyword, or hybrid
+  top_k: 10
+  similarity_threshold: 0.3
+  rrf_k: 60
+  enable_reranker: true
+  reranker_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  rerank_top_k: 5
+  context_compression: true
+
+security:
+  allow_injections: false
+  strip_html_scripts: true
+  max_query_length: 1000
+
+logging:
+  level: "INFO"

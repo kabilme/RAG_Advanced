@@ -1,0 +1,131 @@
+"""Answer validation and hallucination prevention using deterministic grounding checks."""
+
+import re
+from typing import Any, Dict, List, Set, Tuple
+from app.core.logging import logger
+from app.retrieval.base import RetrievedChunk
+
+
+ABSTENTION_MESSAGE = "The available documents do not contain sufficient information to answer this question accurately."
+
+
+class AnswerValidator:
+    """Performs deterministic hallucination detection, numerical grounding, and abstention verification."""
+
+    # Regex to detect numbers, percentages, currency, and dates
+    _NUMERICAL_REGEX = re.compile(r"\b(?:\$|€|£)?\d+(?:[\.,]\d+)?%?\b")
+
+    # Patterns indicating LLM abstention
+    _ABSTENTION_TRIGGERS = [
+        re.compile(r"do\s+not\s+contain\s+sufficient\s+information", re.IGNORECASE),
+        re.compile(r"insufficient\s+information", re.IGNORECASE),
+        re.compile(r"not\s+mentioned\s+in\s+the\s+provided\s+context", re.IGNORECASE),
+        re.compile(r"context\s+does\s+not\s+provide", re.IGNORECASE),
+        re.compile(r"no\s+mention\s+of", re.IGNORECASE),
+    ]
+
+    @classmethod
+    def is_abstention(cls, text: str) -> bool:
+        """Detects whether text is purely or predominantly an abstention response."""
+        clean = text.strip()
+        has_citations = "[source:" in clean.lower()
+        has_bullets = any(line.strip().startswith(("-", "*", "1.", "2.", "•")) for line in clean.split("\n"))
+
+        matches_trigger = any(pattern.search(clean) for pattern in cls._ABSTENTION_TRIGGERS)
+        if not matches_trigger:
+            return False
+
+        # If it matches trigger and has no citations and is short, it is a pure abstention
+        if len(clean) < 180 and not has_citations:
+            return True
+
+        # If it contains citations or bullets or substantive content, it is answering supported portions
+        if has_citations or has_bullets or len(clean) > 250:
+            return False
+
+        return True
+
+    @classmethod
+    def check_retrieval_sufficiency(
+        cls,
+        chunks: List[RetrievedChunk],
+        min_score: float = 0.20,
+    ) -> bool:
+        """Determines if the retrieved candidate pool has sufficient relevance."""
+        if not chunks:
+            return False
+        # Best chunk must meet minimum relevance threshold
+        best_score = max(c.score for c in chunks)
+        if best_score < min_score:
+            logger.info("Retrieval sufficiency check failed: top score %.4f < %.4f", best_score, min_score)
+            return False
+        return True
+
+    @classmethod
+    def validate_numerical_grounding(
+        cls,
+        answer: str,
+        context_text: str,
+    ) -> Tuple[bool, List[str]]:
+        """Verifies that numbers/percentages in the answer originate from the context."""
+        # Strip citation tags (e.g. [Source: doc.pdf, Page: 18]) before checking factual numbers
+        clean_answer = re.sub(r"\[Source:[^\]]+\]", "", answer, flags=re.IGNORECASE)
+        answer_nums = set(cls._NUMERICAL_REGEX.findall(clean_answer))
+        context_nums = set(cls._NUMERICAL_REGEX.findall(context_text))
+
+        # Filter out common small integers like 1, 2, 3 (often from bullet points)
+        significant_nums = {n for n in answer_nums if not (n.isdigit() and int(n) < 10)}
+        unsupported = [n for n in significant_nums if n not in context_nums]
+
+        is_grounded = len(unsupported) == 0
+        if not is_grounded:
+            logger.warning("Detected potentially ungrounded numbers in answer: %s", unsupported)
+
+        return is_grounded, unsupported
+
+    @classmethod
+    def validate_answer(
+        cls,
+        question: str,
+        answer: str,
+        chunks: List[RetrievedChunk],
+    ) -> Dict[str, Any]:
+        """Runs the complete answer validation and evidence grounding evaluation."""
+        warnings: List[str] = []
+
+        # 1. Did the assistant abstain?
+        if cls.is_abstention(answer):
+            return {
+                "is_grounded": True,
+                "should_abstain": True,
+                "validated_answer": ABSTENTION_MESSAGE,
+                "warnings": [],
+            }
+
+        # 2. Check retrieval sufficiency
+        if not cls.check_retrieval_sufficiency(chunks):
+            logger.info("Abstaining: Retrieved documents lack sufficient evidence for question: '%s'", question)
+            return {
+                "is_grounded": False,
+                "should_abstain": True,
+                "validated_answer": ABSTENTION_MESSAGE,
+                "warnings": ["Insufficient retrieval score to guarantee grounded answer."],
+            }
+
+        # If the model provided substantive content but opened with the canned abstention sentence, clean it
+        cleaned_body = re.sub(r"^" + re.escape(ABSTENTION_MESSAGE) + r"\s*", "", answer).strip()
+        if cleaned_body:
+            answer = cleaned_body
+
+        # 3. Check numerical grounding
+        combined_context = " ".join(c.text for c in chunks)
+        nums_ok, unsupported_nums = cls.validate_numerical_grounding(answer, combined_context)
+        if not nums_ok:
+            warnings.append(f"Answer contains numbers not found in retrieved context: {unsupported_nums}")
+
+        return {
+            "is_grounded": nums_ok,
+            "should_abstain": False,
+            "validated_answer": answer,
+            "warnings": warnings,
+        }
