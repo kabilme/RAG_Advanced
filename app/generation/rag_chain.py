@@ -187,6 +187,7 @@ class RAGChain:
 
         yield {
             "type": "done",
+            "answer": final_answer,
             "citations": citation_dicts,
             "is_grounded": validation_result["is_grounded"],
             "is_abstained": validation_result["should_abstain"],

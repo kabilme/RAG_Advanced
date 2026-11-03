@@ -400,20 +400,26 @@ class DocumentChunker:
         return chunks
 
     def _enrich_parent_child_context(self, chunks: List[TextChunk]) -> List[TextChunk]:
-        """Assigns parent context windows to consecutive child chunks."""
+        """Assigns parent context windows to consecutive child chunks, bounded by page/slide/sheet borders."""
         if not chunks:
             return chunks
 
-        # Group chunks by document and section/page
-        # Create rolling parent windows of ~parent_chunk_size
+        def get_location_key(c: TextChunk):
+            return (c.document_id, c.page_number, c.slide_number, c.sheet_name)
+
         parent_id = str(uuid.uuid4())
-        current_parent_texts: List[str] = []
         current_parent_len = 0
         window_chunks: List[TextChunk] = []
+        current_key = None
 
         for chunk in chunks:
             chunk_len = len(chunk.text)
-            if current_parent_len + chunk_len > self.parent_chunk_size and window_chunks:
+            loc_key = get_location_key(chunk)
+
+            boundary_changed = current_key is not None and loc_key != current_key
+            size_exceeded = current_parent_len + chunk_len > self.parent_chunk_size
+
+            if (boundary_changed or size_exceeded) and window_chunks:
                 parent_text = "\n\n".join(c.text for c in window_chunks)
                 for w_chunk in window_chunks:
                     w_chunk.parent_chunk_id = parent_id
@@ -423,9 +429,12 @@ class DocumentChunker:
                 parent_id = str(uuid.uuid4())
                 window_chunks = [chunk]
                 current_parent_len = chunk_len
+                current_key = loc_key
             else:
                 window_chunks.append(chunk)
                 current_parent_len += chunk_len
+                if current_key is None:
+                    current_key = loc_key
 
         if window_chunks:
             parent_text = "\n\n".join(c.text for c in window_chunks)

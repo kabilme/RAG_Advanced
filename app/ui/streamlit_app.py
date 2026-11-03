@@ -339,6 +339,12 @@ elif menu == "Grounded Chat":
                                             status_placeholder.empty()
                                             first_token = False
                                         yield event.get("content", "")
+                                    elif evt_type == "done":
+                                        verified_cites = event.get("citations", [])
+                                        if verified_cites:
+                                            sources_container["verified_citations"] = verified_cites
+                                        if event.get("answer"):
+                                            sources_container["final_answer"] = event.get("answer")
                                     elif evt_type == "error":
                                         status_placeholder.empty()
                                         yield f"\n⚠️ Error: {event.get('message', 'Unknown error')}"
@@ -354,21 +360,24 @@ elif menu == "Grounded Chat":
             if isinstance(full_answer, list):
                 full_answer = "".join(str(item) for item in full_answer)
 
-            if sources_container.get("sources"):
-                with st.expander(f"📚 Retrieved Evidence & Citations ({len(sources_container['sources'])})"):
-                    for sc in sources_container["sources"]:
-                        score_badge = f"Relevance: {sc.get('similarity_score', 0):.2f}"
+            display_sources = sources_container.get("verified_citations") or sources_container.get("sources", [])
+            if display_sources:
+                with st.expander(f"📚 Verified Sources ({len(display_sources)})"):
+                    for sc in display_sources:
+                        tag = sc.get('raw_citation') or sc.get('citation') or f"[Source: {sc.get('filename', 'Document')}]"
+                        score_info = f" <span style='font-size: 12px; color: #94a3b8;'>(Relevance: {sc.get('similarity_score', 0):.2f})</span>" if sc.get('similarity_score') else ""
                         st.markdown(f"""
                         <div class="source-box">
-                            <span class="citation-tag">{sc.get('citation', 'Source')}</span> <span style="font-size: 12px; color: #94a3b8;">({score_badge})</span>
+                            <span class="citation-tag">{tag}</span>{score_info}
                             <p style="margin-top: 6px; font-size: 13px; color: #cbd5e1;">{sc.get('snippet', '')}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
+            saved_answer = sources_container.get("final_answer") or full_answer
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": full_answer,
-                "sources": sources_container.get("sources", []),
+                "content": saved_answer,
+                "sources": display_sources,
             })
 
 

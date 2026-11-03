@@ -78,3 +78,77 @@ def test_source_cards_builder(retrieved_chunks):
     assert cards[0]["filename"] == "solar_report.pdf"
     assert cards[0]["page_number"] == 4
     assert cards[0]["similarity_score"] == 0.95
+
+
+def test_extract_citations_regex_flexibility():
+    text = (
+        "Item 1 [Source: report.pdf, Page 4] "
+        "Item 2 [Source: slides.pptx, Slide: 12] "
+        "Item 3 [Source: data.xlsx; Sheet: Revenue] "
+        "Item 4 [Source: text.pdf, p. 7] "
+        "Item 5 [Source: general.txt]"
+    )
+    citations = CitationManager.extract_citations(text)
+    assert len(citations) == 5
+    assert citations[0][1] == "report.pdf"
+    assert citations[0][2] == "Page"
+    assert citations[0][3] == "4"
+
+    assert citations[1][1] == "slides.pptx"
+    assert citations[1][2] == "Slide"
+    assert citations[1][3] == "12"
+
+    assert citations[2][1] == "data.xlsx"
+    assert citations[2][2] == "Sheet"
+    assert citations[2][3] == "Revenue"
+
+    assert citations[3][1] == "text.pdf"
+    assert citations[3][2] == "Page"
+    assert citations[3][3] == "7"
+
+    assert citations[4][1] == "general.txt"
+    assert citations[4][2] is None
+
+
+def test_validate_citations_autocorrects_hallucinated_page():
+    chunk = RetrievedChunk(
+        chunk_id="c1",
+        document_id="doc-1",
+        text="Ratna started a food stall and rent doubled unexpectedly.",
+        score=0.92,
+        rank=1,
+        retrieval_method="hybrid",
+        filename="hees107.pdf",
+        page_number=21,
+    )
+    # LLM cited printed book page 164 instead of PDF physical page 21
+    text = "Ratna faced issues when rent doubled [Source: hees107.pdf, Page: 164]."
+    items, sanitized = CitationManager.validate_citations(text, [chunk])
+
+    assert len(items) == 1
+    assert items[0].is_valid is True
+    assert items[0].location_value == "21"
+    assert items[0].filename == "hees107.pdf"
+    # The citation in the text should be corrected to Page 21
+    assert "[Source: hees107.pdf, Page: 21]" in sanitized
+    assert "Page: 164" not in sanitized
+
+
+def test_validate_citations_strips_ungrounded_fabricated_location():
+    chunk = RetrievedChunk(
+        chunk_id="c1",
+        document_id="doc-1",
+        text="Solar energy efficiency is approximately 22 percent.",
+        score=0.92,
+        rank=1,
+        retrieval_method="hybrid",
+        filename="solar.pdf",
+        page_number=4,
+    )
+    # The claim is about nuclear energy which has zero overlap with the solar chunk
+    text = "Nuclear fusion reactors were installed across Europe [Source: solar.pdf, Page: 99]."
+    items, sanitized = CitationManager.validate_citations(text, [chunk])
+
+    assert len(items) == 1
+    assert items[0].is_valid is False
+    assert "[Source: solar.pdf, Page: 99]" not in sanitized

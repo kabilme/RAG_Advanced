@@ -39,14 +39,31 @@ class CitationManager:
 
     # Matches citations formatted like:
     # [Source: example.pdf, Page: 5]
+    # [Source: example.pdf, Page 5]
     # [Source: notes.docx, Section: Intro]
     # [Source: presentation.pptx, Slide: 3]
     # [Source: data.xlsx, Sheet: Sales]
     # [Source: report.txt]
     _CITATION_REGEX = re.compile(
-        r"\[Source:\s*([^,\]]+)(?:,\s*(Page|Slide|Sheet|Section):\s*([^\]]+))?\]",
+        r"\[Source:\s*([^,;\]]+)(?:[,;]\s*(Pages?|p\.|pp\.|Slides?|Sheets?|Sections?):?\s*([^\]]+))?\]",
         re.IGNORECASE,
     )
+
+    @classmethod
+    def normalize_location_type(cls, loc_type: Optional[str]) -> Optional[str]:
+        """Normalizes location keywords (e.g. 'pages', 'p.', 'slides') to standard capitalized names."""
+        if not loc_type:
+            return None
+        clean = loc_type.lower().rstrip(".:")
+        if clean in ("page", "pages", "p", "pp"):
+            return "Page"
+        elif clean in ("slide", "slides"):
+            return "Slide"
+        elif clean in ("sheet", "sheets"):
+            return "Sheet"
+        elif clean in ("section", "sections"):
+            return "Section"
+        return loc_type.capitalize()
 
     @classmethod
     def extract_citations(cls, text: str) -> List[Tuple[str, str, Optional[str], Optional[str]]]:
@@ -59,7 +76,8 @@ class CitationManager:
         for match in cls._CITATION_REGEX.finditer(text):
             raw = match.group(0)
             fname = match.group(1).strip()
-            loc_type = match.group(2).strip() if match.group(2) else None
+            loc_type_raw = match.group(2).strip() if match.group(2) else None
+            loc_type = cls.normalize_location_type(loc_type_raw)
             loc_val = match.group(3).strip() if match.group(3) else None
             matches.append((raw, fname, loc_type, loc_val))
         return matches
@@ -76,6 +94,8 @@ class CitationManager:
         1. The cited document was actually retrieved in the candidate pool.
         2. Location matches the actual retrieved chunk if specified.
         3. Fabricated citations are flagged and removed from the returned text.
+        4. Hallucinated page numbers (e.g., printed book pages) are auto-corrected
+           to the actual retrieved chunk's location when the text context matches.
         """
         raw_citations = cls.extract_citations(answer_text)
         validated_items: List[CitationItem] = []
@@ -107,11 +127,11 @@ class CitationManager:
                 sanitized_text = sanitized_text.replace(raw, "")
                 continue
 
-            # Verify location match if specified
+            # Check for exact location match if specified
             matched_chunk = None
-            for c in matching_chunks:
-                if loc_type and loc_val:
-                    lt = loc_type.lower()
+            if loc_type and loc_val:
+                lt = loc_type.lower()
+                for c in matching_chunks:
                     if lt == "page" and str(c.page_number) == loc_val:
                         matched_chunk = c
                         break
@@ -124,27 +144,90 @@ class CitationManager:
                     elif lt == "section" and (c.section or "").lower() == loc_val.lower():
                         matched_chunk = c
                         break
-                else:
-                    matched_chunk = c
-                    break
 
-            if not matched_chunk:
-                # Best effort match to first chunk from that file
-                matched_chunk = matching_chunks[0]
-
-            validated_items.append(
-                CitationItem(
-                    raw_citation=raw,
-                    filename=matched_chunk.filename,
-                    location_type=loc_type,
-                    location_value=loc_val,
-                    is_valid=True,
-                    document_id=matched_chunk.document_id,
-                    chunk_id=matched_chunk.chunk_id,
-                    snippet=matched_chunk.text[:200] + ("..." if len(matched_chunk.text) > 200 else ""),
-                    metadata=matched_chunk.metadata,
+            if matched_chunk:
+                # Valid citation with verified location
+                validated_items.append(
+                    CitationItem(
+                        raw_citation=raw,
+                        filename=matched_chunk.filename,
+                        location_type=loc_type,
+                        location_value=loc_val,
+                        is_valid=True,
+                        document_id=matched_chunk.document_id,
+                        chunk_id=matched_chunk.chunk_id,
+                        snippet=matched_chunk.text[:200] + ("..." if len(matched_chunk.text) > 200 else ""),
+                        metadata=matched_chunk.metadata,
+                    )
                 )
-            )
+            elif loc_type and loc_val:
+                # Location specified but no exact match in retrieved chunks.
+                # Check if the surrounding text aligns with one of the retrieved chunks
+                # (e.g. LLM used printed book page instead of PDF physical page index).
+                citation_pos = answer_text.find(raw)
+                window_start = max(0, citation_pos - 300)
+                surrounding_text = answer_text[window_start:citation_pos].lower()
+                surrounding_words = set(re.findall(r"\w{3,}", surrounding_text))
+
+                best_chunk = None
+                best_overlap = 0
+                for c in matching_chunks:
+                    chunk_words = set(re.findall(r"\w{3,}", c.text.lower()))
+                    overlap = len(surrounding_words.intersection(chunk_words))
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best_chunk = c
+
+                # Auto-correct if confident or single chunk from file
+                if best_chunk and (best_overlap >= 3 or len(matching_chunks) == 1):
+                    corrected_tag = best_chunk.to_citation()
+                    logger.info(
+                        "Auto-correcting citation for %s: '%s' -> '%s' (actual page: %s)",
+                        fname, raw, corrected_tag, best_chunk.page_number
+                    )
+                    sanitized_text = sanitized_text.replace(raw, corrected_tag)
+                    validated_items.append(
+                        CitationItem(
+                            raw_citation=corrected_tag,
+                            filename=best_chunk.filename,
+                            location_type="Page" if best_chunk.page_number else loc_type,
+                            location_value=str(best_chunk.page_number) if best_chunk.page_number else loc_val,
+                            is_valid=True,
+                            document_id=best_chunk.document_id,
+                            chunk_id=best_chunk.chunk_id,
+                            snippet=best_chunk.text[:200] + ("..." if len(best_chunk.text) > 200 else ""),
+                            metadata=best_chunk.metadata,
+                        )
+                    )
+                else:
+                    # Unverifiable hallucinated location
+                    logger.warning("Stripping hallucinated location citation: %s", raw)
+                    validated_items.append(
+                        CitationItem(
+                            raw_citation=raw,
+                            filename=fname,
+                            location_type=loc_type,
+                            location_value=loc_val,
+                            is_valid=False,
+                        )
+                    )
+                    sanitized_text = sanitized_text.replace(raw, "")
+            else:
+                # Citation without location (e.g. [Source: doc.txt])
+                fallback_chunk = matching_chunks[0]
+                validated_items.append(
+                    CitationItem(
+                        raw_citation=raw,
+                        filename=fallback_chunk.filename,
+                        location_type=None,
+                        location_value=None,
+                        is_valid=True,
+                        document_id=fallback_chunk.document_id,
+                        chunk_id=fallback_chunk.chunk_id,
+                        snippet=fallback_chunk.text[:200] + ("..." if len(fallback_chunk.text) > 200 else ""),
+                        metadata=fallback_chunk.metadata,
+                    )
+                )
 
         # Clean any double spaces left from stripping invalid citations
         sanitized_text = re.sub(r"\s{2,}", " ", sanitized_text).strip()

@@ -115,3 +115,31 @@ def test_parent_child_enrichment():
         assert chunk.parent_chunk_id is not None
         assert chunk.parent_text is not None
         assert len(chunk.parent_text) >= len(chunk.text)
+
+
+def test_parent_child_respects_page_boundaries():
+    chunker = DocumentChunker(
+        strategy="structure_aware",
+        chunk_size=100,
+        parent_chunk_size=5000,
+        enable_parent_child=True
+    )
+    sections = [
+        DocumentSection(text="Page 1 sentence content here.", page_number=1),
+        DocumentSection(text="Page 2 sentence content here.", page_number=2),
+    ]
+    chunks = chunker.chunk_document(
+        document_id="doc-p12",
+        filename="multipage.pdf",
+        file_type="pdf",
+        document_hash="hash-p12",
+        sections=sections
+    )
+
+    assert len(chunks) == 2
+    # Ensure chunk 0 parent text does not contain Page 2 content
+    assert "Page 2" not in chunks[0].parent_text
+    # Ensure chunk 1 parent text does not contain Page 1 content
+    assert "Page 1" not in chunks[1].parent_text
+    # Parent chunk IDs must be different across pages
+    assert chunks[0].parent_chunk_id != chunks[1].parent_chunk_id
