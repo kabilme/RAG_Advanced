@@ -108,6 +108,8 @@ class CrossEncoderReranker:
                         source=chunk.source,
                         parent_chunk_id=chunk.parent_chunk_id,
                         parent_text=chunk.parent_text,
+                        context_prefix=chunk.context_prefix,
+                        raw_text=chunk.raw_text,
                         metadata=chunk.metadata,
                     )
                 )

@@ -481,7 +481,7 @@ elif menu == "Settings":
                 help="Maximum length of generated response. 1536 tokens ensures complete, detailed explanations without cutting off."
             )
 
-        st.subheader("Chunking Strategy")
+        st.subheader("Chunking Strategy & Contextual Retrieval")
         c_col1, c_col2 = st.columns(2)
         with c_col1:
             chunk_size = st.number_input(
@@ -489,11 +489,22 @@ elif menu == "Settings":
                 value=int(current_settings.get("chunk_size", 1000)),
                 step=100
             )
+            enable_contextual = st.checkbox(
+                "Enable Contextual Retrieval (Anthropic-style)",
+                value=bool(current_settings.get("enable_contextual_retrieval", True)),
+                help="Prepends situated document and section preambles to each chunk before embedding & BM25 indexing, preventing amnesiac chunk retrieval misses."
+            )
         with c_col2:
             chunk_overlap = st.number_input(
                 "Chunk Overlap (characters)",
                 value=int(current_settings.get("chunk_overlap", 150)),
                 step=25
+            )
+            contextual_mode = st.selectbox(
+                "Contextual Preamble Mode",
+                options=["structural", "llm"],
+                index=0 if current_settings.get("contextual_mode", "structural") == "structural" else 1,
+                help="'structural' creates instant, zero-latency document & section anchors. 'llm' synthesizes dynamic 1-2 sentence summaries via Ollama."
             )
 
         st.subheader("Retrieval & Reranking")
@@ -555,6 +566,8 @@ elif menu == "Settings":
                 "rerank_top_k": int(rerank_k),
                 "enable_vision": bool(enable_vision),
                 "vision_model": vision_model.strip() if vision_model.strip() else "moondream",
+                "enable_contextual_retrieval": bool(enable_contextual),
+                "contextual_mode": contextual_mode,
             }
             save_resp = api_post("/settings", payload)
             if save_resp:

@@ -153,6 +153,8 @@ class ChromaVectorStore(BaseVectorStore):
                     source=str(meta_dict.get("source", "")),
                     parent_chunk_id=meta_dict.get("parent_chunk_id") or None,
                     parent_text=meta_dict.get("parent_text") or None,
+                    context_prefix=meta_dict.get("context_prefix") or None,
+                    raw_text=meta_dict.get("raw_text") or None,
                     metadata=meta_dict,
                 )
             )

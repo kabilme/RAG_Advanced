@@ -21,6 +21,8 @@ class SearchResult:
     source: str = ""
     parent_chunk_id: Optional[str] = None
     parent_text: Optional[str] = None
+    context_prefix: Optional[str] = None
+    raw_text: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 

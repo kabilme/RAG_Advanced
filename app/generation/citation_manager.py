@@ -250,5 +250,6 @@ class CitationManager:
                 "similarity_score": round(chunk.score, 4),
                 "citation": chunk.to_citation(),
                 "snippet": chunk.text,
+                "context_prefix": chunk.context_prefix or "",
             })
         return cards

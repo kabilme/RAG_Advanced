@@ -32,6 +32,8 @@ def get_current_settings(ollama_client=Depends(get_ollama_client)):
         max_tokens=settings.MAX_TOKENS,
         enable_vision=settings.ENABLE_VISION,
         vision_model=settings.VISION_MODEL,
+        enable_contextual_retrieval=settings.ENABLE_CONTEXTUAL_RETRIEVAL,
+        contextual_mode=settings.CONTEXTUAL_MODE,
         installed_models=installed,
     )
 
@@ -66,6 +68,8 @@ def update_system_settings(
             max_tokens=settings.MAX_TOKENS,
             enable_vision=settings.ENABLE_VISION,
             vision_model=settings.VISION_MODEL,
+            enable_contextual_retrieval=settings.ENABLE_CONTEXTUAL_RETRIEVAL,
+            contextual_mode=settings.CONTEXTUAL_MODE,
             installed_models=installed,
         )
     except Exception as exc:

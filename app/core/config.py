@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 150
     PARENT_CHUNK_SIZE: int = 2500
     ENABLE_PARENT_CHILD: bool = True
+    ENABLE_CONTEXTUAL_RETRIEVAL: bool = True
+    CONTEXTUAL_MODE: Literal["structural", "llm"] = "structural"
 
     # Retrieval & Ranking Settings
     RETRIEVAL_STRATEGY: Literal["hybrid", "semantic", "keyword"] = "hybrid"

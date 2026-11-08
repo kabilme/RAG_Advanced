@@ -58,6 +58,8 @@ class SemanticSearchEngine:
                     source=res.source,
                     parent_chunk_id=res.parent_chunk_id,
                     parent_text=res.parent_text,
+                    context_prefix=res.context_prefix or res.metadata.get("context_prefix"),
+                    raw_text=res.raw_text or res.metadata.get("raw_text"),
                     metadata=res.metadata,
                 )
             )

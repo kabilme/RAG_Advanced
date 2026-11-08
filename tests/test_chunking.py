@@ -66,7 +66,8 @@ def test_sentence_chunking():
 def test_paragraph_chunking():
     chunker = DocumentChunker(
         strategy="paragraph",
-        enable_parent_child=False
+        enable_parent_child=False,
+        enable_contextual=False,
     )
     sections = [
         DocumentSection(
@@ -86,6 +87,51 @@ def test_paragraph_chunking():
     assert chunks[0].text == "Paragraph one content."
     assert chunks[1].text == "Paragraph two content."
     assert chunks[2].text == "Paragraph three content."
+
+
+def test_contextual_retrieval_enrichment():
+    """Verifies that Contextual Retrieval prepends situated document and section preambles."""
+    chunker = DocumentChunker(
+        strategy="structure_aware",
+        enable_parent_child=True,
+        enable_contextual=True,
+        contextual_mode="structural",
+    )
+    sections = [
+        DocumentSection(
+            text="SUMIF adds all numbers in a range of cells based on one criterion.",
+            section_title="Statistical Functions",
+            page_number=3,
+        )
+    ]
+    chunks = chunker.chunk_document(
+        document_id="doc-ctx-1",
+        filename="Soft_Skills_III_Unit_I_MS_Excel_Basics.docx",
+        file_type="docx",
+        document_hash="hash-ctx-1",
+        sections=sections,
+    )
+
+    assert len(chunks) == 1
+    c = chunks[0]
+    # Check that raw text is preserved
+    assert c.raw_text == "SUMIF adds all numbers in a range of cells based on one criterion."
+    # Check that context prefix is generated with document and section info
+    assert c.context_prefix is not None
+    assert "Soft_Skills_III_Unit_I_MS_Excel_Basics.docx" in c.context_prefix
+    assert "Statistical Functions" in c.context_prefix
+    assert "Page: 3" in c.context_prefix
+    # Check that full text has prefix prepended
+    assert c.text.startswith(c.context_prefix)
+    assert c.raw_text in c.text
+    # Check that parent text also receives the prefix
+    assert c.parent_text is not None
+    assert c.parent_text.startswith(c.context_prefix)
+    # Check serialization
+    c_dict = c.to_dict()
+    assert "context_prefix" in c_dict
+    assert c_dict["context_prefix"] == c.context_prefix
+    assert c_dict["raw_text"] == c.raw_text
 
 
 def test_parent_child_enrichment():

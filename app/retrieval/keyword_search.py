@@ -136,6 +136,8 @@ class BM25SearchEngine:
                     source=chunk.source,
                     parent_chunk_id=chunk.parent_chunk_id,
                     parent_text=chunk.parent_text,
+                    context_prefix=getattr(chunk, "context_prefix", None),
+                    raw_text=getattr(chunk, "raw_text", None),
                     metadata=chunk.to_dict(),
                 )
             )

@@ -27,6 +27,8 @@ class TextChunk:
     source: str = ""
     parent_chunk_id: Optional[str] = None
     parent_text: Optional[str] = None
+    context_prefix: Optional[str] = None
+    raw_text: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -44,6 +46,8 @@ class TextChunk:
             "document_hash": self.document_hash,
             "source": self.source,
             "parent_chunk_id": self.parent_chunk_id or "",
+            "context_prefix": self.context_prefix or "",
+            "raw_text": self.raw_text or "",
         }
 
 
@@ -57,12 +61,20 @@ class DocumentChunker:
         chunk_overlap: int = 150,
         enable_parent_child: bool = True,
         parent_chunk_size: int = 2500,
+        enable_contextual: Optional[bool] = None,
+        contextual_mode: Optional[str] = None,
+        ollama_client: Optional[Any] = None,
     ):
         self.strategy = strategy
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.enable_parent_child = enable_parent_child
         self.parent_chunk_size = parent_chunk_size
+        self.enable_contextual = (
+            enable_contextual if enable_contextual is not None else getattr(settings, "ENABLE_CONTEXTUAL_RETRIEVAL", True)
+        )
+        self.contextual_mode = contextual_mode or getattr(settings, "CONTEXTUAL_MODE", "structural")
+        self.ollama_client = ollama_client
 
     def chunk_document(
         self,
@@ -104,11 +116,31 @@ class DocumentChunker:
         if self.enable_parent_child:
             chunks = self._enrich_parent_child_context(chunks)
 
+        # Attach Contextual Retrieval situational preambles if enabled
+        if self.enable_contextual:
+            chunks = self._enrich_contextual_retrieval(chunks, filename, sections)
+
         logger.debug(
-            "Created %d chunks for document %s using strategy '%s'",
-            len(chunks), filename, self.strategy
+            "Created %d chunks for document %s using strategy '%s' (Contextual: %s)",
+            len(chunks), filename, self.strategy, self.enable_contextual
         )
         return chunks
+
+    def _enrich_contextual_retrieval(
+        self,
+        chunks: List[TextChunk],
+        filename: str,
+        sections: List[DocumentSection],
+    ) -> List[TextChunk]:
+        """Applies Contextual Retrieval prepending document & section situating preambles."""
+        from app.ingestion.contextual_enricher import ContextualEnricher
+        return ContextualEnricher.enrich_chunks(
+            chunks=chunks,
+            filename=filename,
+            sections=sections,
+            mode=self.contextual_mode,
+            ollama_client=self.ollama_client,
+        )
 
     def _chunk_structure_aware(
         self,

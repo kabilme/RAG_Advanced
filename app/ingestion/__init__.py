@@ -3,6 +3,7 @@
 from app.ingestion.text_cleaner import TextCleaner
 from app.ingestion.ocr_processor import OCRProcessor
 from app.ingestion.vision_processor import VisionProcessor
+from app.ingestion.contextual_enricher import ContextualEnricher
 from app.ingestion.loaders import (
     BaseLoader,
     PDFLoader,
@@ -22,6 +23,7 @@ __all__ = [
     "TextCleaner",
     "OCRProcessor",
     "VisionProcessor",
+    "ContextualEnricher",
     "BaseLoader",
     "PDFLoader",
     "DocxLoader",

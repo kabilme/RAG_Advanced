@@ -81,6 +81,8 @@ class DocumentIngestionEngine:
             chunk_overlap=settings.CHUNK_OVERLAP,
             enable_parent_child=settings.ENABLE_PARENT_CHILD,
             parent_chunk_size=settings.PARENT_CHUNK_SIZE,
+            enable_contextual=getattr(settings, "ENABLE_CONTEXTUAL_RETRIEVAL", True),
+            contextual_mode=getattr(settings, "CONTEXTUAL_MODE", "structural"),
         )
         self.known_hashes = known_hashes if known_hashes is not None else set()
 

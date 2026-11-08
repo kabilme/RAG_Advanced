@@ -63,6 +63,7 @@ class SourceCardResponse(BaseModel):
     similarity_score: float
     citation: str
     snippet: str
+    context_prefix: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
@@ -119,6 +120,8 @@ class SettingsUpdateRequest(BaseModel):
     max_tokens: Optional[int] = None
     enable_vision: Optional[bool] = None
     vision_model: Optional[str] = None
+    enable_contextual_retrieval: Optional[bool] = None
+    contextual_mode: Optional[str] = None
 
 
 class SettingsResponse(BaseModel):
@@ -137,4 +140,6 @@ class SettingsResponse(BaseModel):
     max_tokens: int
     enable_vision: bool = False
     vision_model: str = "moondream"
+    enable_contextual_retrieval: bool = True
+    contextual_mode: str = "structural"
     installed_models: List[str] = Field(default_factory=list)

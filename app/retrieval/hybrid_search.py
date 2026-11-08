@@ -106,6 +106,8 @@ class HybridSearchEngine:
                     source=base_chunk.source,
                     parent_chunk_id=base_chunk.parent_chunk_id,
                     parent_text=base_chunk.parent_text,
+                    context_prefix=base_chunk.context_prefix,
+                    raw_text=base_chunk.raw_text,
                     metadata=base_chunk.metadata,
                 )
             )
