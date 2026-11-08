@@ -34,7 +34,7 @@ def test_document_repository(in_memory_session):
     assert doc.document_id == "doc-001"
     assert doc.chunk_count == 5
 
-    # Get by ID and hash
+    # Get by ID, hash, and filename
     by_id = repo.get_by_id("doc-001")
     assert by_id is not None
     assert by_id.filename == "report.pdf"
@@ -42,6 +42,23 @@ def test_document_repository(in_memory_session):
     by_hash = repo.get_by_hash("sha256-hash-value-1")
     assert by_hash is not None
     assert by_hash.document_id == "doc-001"
+
+    by_name = repo.get_by_filename("report.pdf")
+    assert by_name is not None
+    assert by_name.document_id == "doc-001"
+
+    # Test idempotent upsert with same file_hash and new doc_id (collision safety)
+    re_doc = repo.upsert(
+        document_id="doc-002-collision",
+        filename="report_renamed.pdf",
+        file_type="pdf",
+        file_hash="sha256-hash-value-1",
+        file_size_bytes=2048,
+        chunk_count=10,
+    )
+    assert re_doc.document_id == "doc-001"
+    assert re_doc.filename == "report_renamed.pdf"
+    assert re_doc.chunk_count == 10
 
     # List all
     all_docs = repo.list_all()

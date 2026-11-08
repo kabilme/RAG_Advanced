@@ -19,6 +19,9 @@ class DocumentRepository:
     def get_by_hash(self, file_hash: str) -> Optional[DocumentRecord]:
         return self.session.query(DocumentRecord).filter(DocumentRecord.file_hash == file_hash).first()
 
+    def get_by_filename(self, filename: str) -> Optional[DocumentRecord]:
+        return self.session.query(DocumentRecord).filter(DocumentRecord.filename == filename).first()
+
     def list_all(self) -> List[DocumentRecord]:
         return self.session.query(DocumentRecord).order_by(DocumentRecord.created_at.desc()).all()
 
@@ -32,7 +35,7 @@ class DocumentRepository:
         chunk_count: int,
         status: str = "indexed",
     ) -> DocumentRecord:
-        record = self.get_by_id(document_id)
+        record = self.get_by_hash(file_hash) or self.get_by_id(document_id)
         if not record:
             record = DocumentRecord(
                 document_id=document_id,
@@ -52,16 +55,24 @@ class DocumentRepository:
             record.chunk_count = chunk_count
             record.status = status
 
-        self.session.commit()
-        self.session.refresh(record)
-        return record
+        try:
+            self.session.commit()
+            self.session.refresh(record)
+            return record
+        except Exception:
+            self.session.rollback()
+            raise
 
     def delete(self, document_id: str) -> bool:
         record = self.get_by_id(document_id)
         if record:
-            self.session.delete(record)
-            self.session.commit()
-            return True
+            try:
+                self.session.delete(record)
+                self.session.commit()
+                return True
+            except Exception:
+                self.session.rollback()
+                raise
         return False
 
 
@@ -77,8 +88,12 @@ class ConversationRepository:
         if not conv:
             conv = ConversationRecord(session_id=sid, title=title or "New Conversation")
             self.session.add(conv)
-            self.session.commit()
-            self.session.refresh(conv)
+            try:
+                self.session.commit()
+                self.session.refresh(conv)
+            except Exception:
+                self.session.rollback()
+                raise
         return conv
 
     def list_sessions(self) -> List[ConversationRecord]:
@@ -109,14 +124,22 @@ class ConversationRepository:
             sources_json=json.dumps(sources) if sources else None,
         )
         self.session.add(msg)
-        self.session.commit()
-        self.session.refresh(msg)
-        return msg
+        try:
+            self.session.commit()
+            self.session.refresh(msg)
+            return msg
+        except Exception:
+            self.session.rollback()
+            raise
 
     def delete_session(self, session_id: str) -> bool:
         conv = self.session.query(ConversationRecord).filter(ConversationRecord.session_id == session_id).first()
         if conv:
-            self.session.delete(conv)
-            self.session.commit()
-            return True
+            try:
+                self.session.delete(conv)
+                self.session.commit()
+                return True
+            except Exception:
+                self.session.rollback()
+                raise
         return False

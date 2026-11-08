@@ -14,10 +14,12 @@ from docx import Document as DocxDocument
 from pptx import Presentation
 import pymupdf
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.core.exceptions import DocumentExtractionError
 from app.ingestion.text_cleaner import TextCleaner
 from app.ingestion.ocr_processor import OCRProcessor
+from app.ingestion.vision_processor import VisionProcessor
 
 
 @dataclass
@@ -70,9 +72,43 @@ class PDFLoader(BaseLoader):
                 if table_texts:
                     combined_content += "\n\n### Extracted Tables:\n" + "\n\n".join(table_texts)
 
+                # 3. Multimodal diagram, chart, and figure extraction via local Vision LLM
+                diagram_texts = []
+                if VisionProcessor.is_available():
+                    try:
+                        images = page.get_images(full=True)
+                        max_imgs = getattr(settings, "VISION_MAX_IMAGES_PER_PAGE", 3)
+                        processed = 0
+                        for img_info in images:
+                            if processed >= max_imgs:
+                                break
+                            xref = img_info[0]
+                            try:
+                                pix = pymupdf.Pixmap(doc, xref)
+                                if pix.n > 4 or (pix.colorspace and pix.colorspace.name not in ("DeviceRGB", "csRGB")):
+                                    pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+                                img_bytes = pix.tobytes("png")
+                            except Exception:
+                                base_image = doc.extract_image(xref)
+                                img_bytes = base_image.get("image")
+
+                            if img_bytes:
+                                desc = VisionProcessor.describe_image(img_bytes)
+                                if desc:
+                                    diagram_texts.append(desc)
+                                    processed += 1
+                    except Exception as vis_err:
+                        logger.debug("Vision extraction skipped on PDF page %d: %s", page_num, vis_err)
+
+                if diagram_texts:
+                    figures_md = "\n\n### Extracted Diagrams & Visual Charts:\n" + "\n\n".join(
+                        f"**Figure {f_idx}:** {d}" for f_idx, d in enumerate(diagram_texts, start=1)
+                    )
+                    combined_content += figures_md
+
                 cleaned = TextCleaner.clean(combined_content)
 
-                # 3. Optional OCR if page has minimal text and OCR is available
+                # 4. Optional OCR if page has minimal text and OCR is available
                 if len(cleaned.strip()) < 30 and OCRProcessor.is_available():
                     pix = page.get_pixmap()
                     from PIL import Image
@@ -83,11 +119,15 @@ class PDFLoader(BaseLoader):
                         logger.info("OCR recovered %d characters on PDF page %d", len(cleaned), page_num)
 
                 if cleaned:
+                    page_meta = {"page_count": len(doc)}
+                    if diagram_texts:
+                        page_meta["has_diagrams"] = True
+                        page_meta["diagram_count"] = len(diagram_texts)
                     sections.append(
                         DocumentSection(
                             text=cleaned,
                             page_number=page_num,
-                            metadata={"page_count": len(doc)}
+                            metadata=page_meta
                         )
                     )
             doc.close()
@@ -144,6 +184,30 @@ class DocxLoader(BaseLoader):
                             metadata={"is_table": True}
                         )
                     )
+
+            # Optional vision extraction for embedded document images
+            if VisionProcessor.is_available():
+                diagram_texts = []
+                try:
+                    for rel in doc.part.rels.values():
+                        if "image" in rel.target_ref:
+                            img_bytes = rel.target_part.blob
+                            desc = VisionProcessor.describe_image(img_bytes)
+                            if desc:
+                                diagram_texts.append(desc)
+                except Exception as vis_err:
+                    logger.debug("DOCX vision extraction skipped: %s", vis_err)
+
+                if diagram_texts:
+                    sections.append(
+                        DocumentSection(
+                            text="### Document Figures & Diagrams:\n" + "\n\n".join(
+                                f"**Figure {f_idx}:** {d}" for f_idx, d in enumerate(diagram_texts, start=1)
+                            ),
+                            section_title="Visual Figures & Diagrams",
+                            metadata={"has_diagrams": True}
+                        )
+                    )
         except Exception as exc:
             raise DocumentExtractionError(f"Failed to extract DOCX ({file_path.name}): {exc}") from exc
 
@@ -178,6 +242,15 @@ class PptxLoader(BaseLoader):
                         if table_data and len(table_data) > 1:
                             df = pd.DataFrame(table_data[1:], columns=table_data[0])
                             slide_texts.append(df.to_markdown(index=False))
+
+                    elif VisionProcessor.is_available() and (getattr(shape, "shape_type", None) == 13 or hasattr(shape, "image")):
+                        try:
+                            img_bytes = shape.image.blob
+                            desc = VisionProcessor.describe_image(img_bytes)
+                            if desc:
+                                slide_texts.append(f"\n**Slide Visual/Diagram:** {desc}")
+                        except Exception as vis_err:
+                            logger.debug("PPTX vision extraction skipped on slide %d: %s", slide_idx, vis_err)
 
                 if slide_texts:
                     clean_text = TextCleaner.clean("\n".join(slide_texts))

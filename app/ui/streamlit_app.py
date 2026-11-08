@@ -525,6 +525,21 @@ elif menu == "Settings":
                 help="Keeping this at 5 reduces LLM prompt processing time by ~40% on CPU."
             )
 
+        st.subheader("Multimodal Vision (Diagrams & Charts)")
+        v_col1, v_col2 = st.columns(2)
+        with v_col1:
+            enable_vision = st.checkbox(
+                "Enable Vision Model for Diagrams & Charts",
+                value=bool(current_settings.get("enable_vision", False)),
+                help="Automatically extracts figures, graphs, maps, and flowcharts from PDFs, PPTX, and DOCX files into rich Markdown descriptions."
+            )
+        with v_col2:
+            vision_model = st.text_input(
+                "Ollama Vision Model",
+                value=current_settings.get("vision_model", "moondream"),
+                help="Recommended: 'moondream' (1.8B, fast CPU) or 'llava' (7B)."
+            )
+
         submitted = st.form_submit_button("💾 Save & Apply Settings", type="primary")
         if submitted:
             payload = {
@@ -538,6 +553,8 @@ elif menu == "Settings":
                 "similarity_threshold": float(sim_thresh),
                 "enable_reranker": bool(enable_rerank),
                 "rerank_top_k": int(rerank_k),
+                "enable_vision": bool(enable_vision),
+                "vision_model": vision_model.strip() if vision_model.strip() else "moondream",
             }
             save_resp = api_post("/settings", payload)
             if save_resp:

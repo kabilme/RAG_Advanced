@@ -117,6 +117,8 @@ class SettingsUpdateRequest(BaseModel):
     rerank_top_k: Optional[int] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
+    enable_vision: Optional[bool] = None
+    vision_model: Optional[str] = None
 
 
 class SettingsResponse(BaseModel):
@@ -133,4 +135,6 @@ class SettingsResponse(BaseModel):
     rerank_top_k: int
     temperature: float
     max_tokens: int
+    enable_vision: bool = False
+    vision_model: str = "moondream"
     installed_models: List[str] = Field(default_factory=list)

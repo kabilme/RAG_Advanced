@@ -2,6 +2,7 @@
 
 from app.ingestion.text_cleaner import TextCleaner
 from app.ingestion.ocr_processor import OCRProcessor
+from app.ingestion.vision_processor import VisionProcessor
 from app.ingestion.loaders import (
     BaseLoader,
     PDFLoader,
@@ -20,6 +21,7 @@ from app.ingestion.document_loader import DocumentIngestionEngine, IngestionResu
 __all__ = [
     "TextCleaner",
     "OCRProcessor",
+    "VisionProcessor",
     "BaseLoader",
     "PDFLoader",
     "DocxLoader",

@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     # Security & Processing
     MAX_QUERY_LENGTH: int = 1000
     ENABLE_OCR: bool = False
+    ENABLE_VISION: bool = False
+    VISION_MODEL: str = "moondream"
+    VISION_MIN_IMAGE_SIZE: int = 4096
+    VISION_MIN_DIMENSION: int = 100
+    VISION_MAX_IMAGES_PER_PAGE: int = 3
     LOG_LEVEL: str = "INFO"
 
     def ensure_directories(self) -> None:
