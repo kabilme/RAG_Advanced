@@ -120,3 +120,4 @@ def get_widget_info(
         "demo_studio_url": f"{base_url}/widget/demo",
         "direct_embed_url": f"{base_url}/widget/embed",
     }
+

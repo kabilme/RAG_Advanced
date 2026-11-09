@@ -73,3 +73,4 @@ def test_root_includes_widget_links():
     data = resp.json()
     assert "widget_studio_url" in data
     assert "widget_embed_url" in data
+
