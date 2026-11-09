@@ -1,8 +1,10 @@
 """FastAPI main application entry point."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -13,6 +15,7 @@ from app.api.routes import (
     chat_router,
     retrieval_router,
     settings_router,
+    widget_router,
 )
 
 
@@ -49,6 +52,12 @@ app.include_router(documents_router)
 app.include_router(chat_router)
 app.include_router(retrieval_router)
 app.include_router(settings_router)
+app.include_router(widget_router)
+
+# Mount static files directory for embeddable chatbot widget
+static_dir = Path(__file__).resolve().parent / "static"
+static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 @app.get("/")
@@ -57,4 +66,6 @@ def root():
         "message": "Local Advanced RAG System API is running.",
         "docs_url": "/docs",
         "health_url": "/health",
+        "widget_studio_url": "/widget/demo",
+        "widget_embed_url": "/widget/embed",
     }

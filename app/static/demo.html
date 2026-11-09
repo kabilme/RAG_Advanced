@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embeddable Chatbot Studio & Showcase</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: #0b0f19;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(15, 23, 42, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 16px rgba(2, 132, 199, 0.4);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .header-links a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 13.5px;
+      margin-left: 20px;
+      transition: color 0.15s;
+    }
+
+    .header-links a:hover {
+      color: #38bdf8;
+    }
+
+    .main-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      height: calc(100vh - 69px);
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Controls & Code Generator */
+    .studio-sidebar {
+      background: #0f172a;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .studio-sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .studio-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #38bdf8;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      color: #f8fafc;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: #0284c7;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 60px;
+      line-height: 1.4;
+    }
+
+    /* Color Swatches */
+    .color-presets {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .color-swatch.active {
+      border-color: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Code Snippet Box */
+    .code-tabs {
+      display: flex;
+      gap: 4px;
+      background: #1e293b;
+      padding: 4px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .code-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .code-tab-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    .code-box {
+      position: relative;
+      background: #090d16;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .code-box pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #0284c7;
+    }
+
+    .btn-apply {
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      border: none;
+      color: #ffffff;
+      padding: 11px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    }
+
+    .btn-apply:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+    }
+
+    /* Right Preview Area: Simulated Host Website */
+    .preview-stage {
+      background: #131b2e;
+      position: relative;
+      overflow-y: auto;
+      padding: 48px;
+    }
+
+    .simulated-browser {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      min-height: 800px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .browser-toolbar {
+      background: #0f172a;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .browser-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .browser-address {
+      flex: 1;
+      background: #1e293b;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      color: #94a3b8;
+      font-family: monospace;
+    }
+
+    .simulated-page-content {
+      padding: 48px;
+      flex: 1;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .hero-title {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #ffffff;
+      margin-bottom: 16px;
+      max-width: 680px;
+    }
+
+    .hero-desc {
+      font-size: 16px;
+      color: #94a3b8;
+      line-height: 1.6;
+      max-width: 620px;
+      margin-bottom: 28px;
+    }
+
+    .hero-cta-btn {
+      background: #0284c7;
+      border: none;
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.15s;
+    }
+
+    .hero-cta-btn:hover {
+      background: #0369a1;
+      transform: translateY(-1px);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 48px;
+    }
+
+    .feature-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .feature-text {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1024px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .studio-sidebar {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .preview-stage {
+        padding: 20px;
+      }
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <div>
+        <span class="brand-title">Local RAG Chatbot Studio</span>
+        <span class="brand-badge">Embed Anywhere</span>
+      </div>
+    </div>
+    <div class="header-links">
+      <a href="/docs" target="_blank">API Docs</a>
+      <a href="/widget/embed" target="_blank">Direct Iframe View</a>
+      <a href="http://localhost:8501" target="_blank">Streamlit Console</a>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Left Configuration Sidebar -->
+    <aside class="studio-sidebar">
+      <div>
+        <div class="section-title">🎨 Widget Customizer</div>
+        
+        <div class="form-group">
+          <label class="form-label" for="cfgApiUrl">Backend API Base URL</label>
+          <input type="text" id="cfgApiUrl" class="form-input" value="http://127.0.0.1:8000" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgTitle">Chatbot Title</label>
+          <input type="text" id="cfgTitle" class="form-input" value="Document Assistant" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgSubtitle">Subtitle / Tagline</label>
+          <input type="text" id="cfgSubtitle" class="form-input" value="Offline Grounded Knowledge" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Brand Color</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="color" id="cfgColorPicker" value="#0284c7" style="border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; background:transparent;" />
+            <input type="text" id="cfgColorText" class="form-input" value="#0284c7" style="font-family: monospace;" />
+          </div>
+          <div class="color-presets">
+            <div class="color-swatch active" data-color="#0284c7" style="background:#0284c7;" title="Cyan/Sky"></div>
+            <div class="color-swatch" data-color="#059669" style="background:#059669;" title="Emerald"></div>
+            <div class="color-swatch" data-color="#7c3aed" style="background:#7c3aed;" title="Violet"></div>
+            <div class="color-swatch" data-color="#d97706" style="background:#d97706;" title="Amber"></div>
+            <div class="color-swatch" data-color="#e11d48" style="background:#e11d48;" title="Rose"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgPosition">Position</label>
+          <select id="cfgPosition" class="form-select">
+            <option value="bottom-right" selected>Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgGreeting">Welcome Greeting</label>
+          <textarea id="cfgGreeting" class="form-textarea">Hello! 👋 I am your offline document assistant. Ask me questions about your uploaded documents, and I will answer with verified citations.</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgSuggestions">Suggested Prompts (pipe separated)</label>
+          <input type="text" id="cfgSuggestions" class="form-input" value="Summarize key documents|What are the main findings?|List technical specs" />
+        </div>
+
+        <button id="btnApplyChanges" class="btn-apply">⚡ Update Live Preview</button>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1);" />
+
+      <!-- Ready Embed Code Snippets -->
+      <div>
+        <div class="section-title">📦 Embed Code Generator</div>
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+          Copy and paste either code snippet into your website's HTML before the closing <code>&lt;/body&gt;</code> tag:
+        </p>
+
+        <div class="code-tabs">
+          <button class="code-tab-btn active" data-tab="script">Script Tag (Widget)</button>
+          <button class="code-tab-btn" data-tab="iframe">Iframe Embed</button>
+          <button class="code-tab-btn" data-tab="react">React / Next.js</button>
+        </div>
+
+        <div class="code-box">
+          <button class="copy-btn" id="btnCopySnippet">📋 Copy</button>
+          <pre><code id="snippetDisplay"></code></pre>
+        </div>
+      </div>
+
+      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 12px; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+        <strong style="color: #38bdf8;">💡 Zero Style Conflicts:</strong> The chatbot is rendered inside a native <code>Shadow DOM</code>. Your website's Bootstrap, Tailwind, or WordPress styles will never affect the chatbot, and the chatbot will never alter your host page.
+      </div>
+    </aside>
+
+    <!-- Right Live Preview: Simulated Company Webpage -->
+    <main class="preview-stage">
+      <div class="simulated-browser">
+        <div class="browser-toolbar">
+          <div class="browser-dots">
+            <span class="browser-dot" style="background: #ef4444;"></span>
+            <span class="browser-dot" style="background: #eab308;"></span>
+            <span class="browser-dot" style="background: #22c55e;"></span>
+          </div>
+          <div class="browser-address">https://yourcompany.com/portal</div>
+        </div>
+
+        <div class="simulated-page-content">
+          <span class="hero-badge">Simulated Customer Website Preview</span>
+          <h1 class="hero-title">Intelligent Knowledge Base & Operations Portal</h1>
+          <p class="hero-desc">
+            This live preview demonstrates how the RAG chatbot seamlessly integrates into any existing webpage as a discreet, floating widget. Click the floating circular bubble in the corner to interact!
+          </p>
+
+          <button class="hero-cta-btn" id="btnTriggerChat">
+            💬 Open Knowledge Assistant
+          </button>
+
+          <div class="feature-grid">
+            <div class="feature-card">
+              <div class="feature-icon">🔒</div>
+              <div class="feature-title">100% Offline & Private</div>
+              <div class="feature-text">All embeddings, semantic searches, and LLM inferences execute locally on your machine with zero data leakage.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📚</div>
+              <div class="feature-title">Verifiable Citations</div>
+              <div class="feature-text">Answers reference exact page numbers and document passages with hallucination detection.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">⚡</div>
+              <div class="feature-title">Real-Time Streaming</div>
+              <div class="feature-text">Low-latency token generation via Server-Sent Events (SSE) direct to the embedded widget.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Inject the actual chat widget dynamically -->
+  <script src="/static/chat-widget.js" 
+    id="ragWidgetScript"
+    data-api-url="http://127.0.0.1:8000"
+    data-title="Document Assistant"
+    data-subtitle="Offline Grounded Knowledge"
+    data-primary-color="#0284c7"
+    data-position="bottom-right"
+    data-greeting="Hello! 👋 I am your offline document assistant. Ask me questions about your uploaded documents, and I will answer with verified citations."
+    data-suggestions="Summarize key documents|What are the main findings?|List technical specs">
+  </script>
+
+  <script>
+    (function() {
+      const cfgApiUrl = document.getElementById("cfgApiUrl");
+      const cfgTitle = document.getElementById("cfgTitle");
+      const cfgSubtitle = document.getElementById("cfgSubtitle");
+      const cfgColorPicker = document.getElementById("cfgColorPicker");
+      const cfgColorText = document.getElementById("cfgColorText");
+      const cfgPosition = document.getElementById("cfgPosition");
+      const cfgGreeting = document.getElementById("cfgGreeting");
+      const cfgSuggestions = document.getElementById("cfgSuggestions");
+      const btnApply = document.getElementById("btnApplyChanges");
+      const snippetDisplay = document.getElementById("snippetDisplay");
+      const btnCopy = document.getElementById("btnCopySnippet");
+      const btnTriggerChat = document.getElementById("btnTriggerChat");
+      const colorSwatches = document.querySelectorAll(".color-swatch");
+      const tabButtons = document.querySelectorAll(".code-tab-btn");
+
+      let currentTab = "script";
+
+      // Color picker sync
+      cfgColorPicker.addEventListener("input", (e) => {
+        cfgColorText.value = e.target.value;
+        updateActiveSwatch(e.target.value);
+        generateSnippets();
+      });
+
+      cfgColorText.addEventListener("input", (e) => {
+        cfgColorPicker.value = e.target.value;
+        updateActiveSwatch(e.target.value);
+        generateSnippets();
+      });
+
+      colorSwatches.forEach(swatch => {
+        swatch.addEventListener("click", () => {
+          const col = swatch.getAttribute("data-color");
+          cfgColorPicker.value = col;
+          cfgColorText.value = col;
+          updateActiveSwatch(col);
+          generateSnippets();
+        });
+      });
+
+      function updateActiveSwatch(col) {
+        colorSwatches.forEach(s => {
+          if (s.getAttribute("data-color").toLowerCase() === col.toLowerCase()) {
+            s.classList.add("active");
+          } else {
+            s.classList.remove("active");
+          }
+        });
+      }
+
+      // Tab switcher
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentTab = btn.getAttribute("data-tab");
+          generateSnippets();
+        });
+      });
+
+      function generateSnippets() {
+        const api = cfgApiUrl.value.trim() || "http://127.0.0.1:8000";
+        const title = cfgTitle.value.trim();
+        const subtitle = cfgSubtitle.value.trim();
+        const color = cfgColorText.value.trim();
+        const pos = cfgPosition.value;
+        const greeting = cfgGreeting.value.trim();
+        const suggestions = cfgSuggestions.value.trim();
+
+        if (currentTab === "script") {
+          snippetDisplay.textContent = `<!-- Local Advanced RAG Embeddable Chatbot -->
+<script 
+  src="${api}/static/chat-widget.js" 
+  data-api-url="${api}"
+  data-title="${title}"
+  data-subtitle="${subtitle}"
+  data-primary-color="${color}"
+  data-position="${pos}"
+  data-greeting="${greeting}"
+  data-suggestions="${suggestions}"
+  defer>
+<\\/script>`;
+        } else if (currentTab === "iframe") {
+          const iframeSrc = `${api}/widget/embed?api=${encodeURIComponent(api)}&title=${encodeURIComponent(title)}&color=${encodeURIComponent(color)}&greeting=${encodeURIComponent(greeting)}&suggestions=${encodeURIComponent(suggestions)}`;
+          snippetDisplay.textContent = `<!-- Responsive Iframe Chat Embed -->
+<iframe 
+  src="${iframeSrc}"
+  width="100%" 
+  height="600" 
+  frameborder="0" 
+  style="border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 420px;"
+  title="${title}">
+</iframe>`;
+        } else if (currentTab === "react") {
+          snippetDisplay.textContent = `// React / Next.js Component Embed
+import { useEffect } from "react";
+
+export default function DocumentChatWidget() {
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "${api}/static/chat-widget.js";
+    script.setAttribute("data-api-url", "${api}");
+    script.setAttribute("data-title", "${title}");
+    script.setAttribute("data-primary-color", "${color}");
+    script.setAttribute("data-position", "${pos}");
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      const root = document.getElementById("rag-chat-widget-root");
+      if (root) root.remove();
+      delete window.__RAG_CHAT_WIDGET_LOADED__;
+    };
+  }, []);
+
+  return null;
+}`;
+        }
+      }
+
+      // Apply button re-initializes widget with new settings
+      btnApply.addEventListener("click", () => {
+        const root = document.getElementById("rag-chat-widget-root");
+        if (root) root.remove();
+        delete window.__RAG_CHAT_WIDGET_LOADED__;
+
+        const widget = window.RAGChatWidget.init({
+          apiUrl: cfgApiUrl.value.trim(),
+          title: cfgTitle.value.trim(),
+          subtitle: cfgSubtitle.value.trim(),
+          primaryColor: cfgColorText.value.trim(),
+          position: cfgPosition.value,
+          greeting: cfgGreeting.value.trim(),
+          suggestions: cfgSuggestions.value.trim().split("|"),
+        });
+
+        generateSnippets();
+      });
+
+      // Trigger chat button from webpage
+      btnTriggerChat.addEventListener("click", () => {
+        if (window.RAGChatWidget) {
+          window.RAGChatWidget.open();
+        }
+      });
+
+      // Copy snippet button
+      btnCopy.addEventListener("click", () => {
+        navigator.clipboard.writeText(snippetDisplay.textContent).then(() => {
+          btnCopy.textContent = "✅ Copied!";
+          setTimeout(() => btnCopy.textContent = "📋 Copy", 2000);
+        });
+      });
+
+      // Listen to inputs
+      [cfgApiUrl, cfgTitle, cfgSubtitle, cfgPosition, cfgGreeting, cfgSuggestions].forEach(el => {
+        el.addEventListener("input", generateSnippets);
+        el.addEventListener("change", generateSnippets);
+      });
+
+      generateSnippets();
+    })();
+  </script>
+</body>
+</html>

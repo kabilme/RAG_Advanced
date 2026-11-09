@@ -99,7 +99,7 @@ with st.sidebar:
 
     menu = st.radio(
         "Navigation",
-        ["Dashboard", "Document Management", "Grounded Chat", "Retrieval Lab", "Settings", "Evaluation"],
+        ["Dashboard", "Document Management", "Grounded Chat", "Retrieval Lab", "Embeddable Chatbot", "Settings", "Evaluation"],
         index=0,
     )
 
@@ -420,7 +420,131 @@ elif menu == "Retrieval Lab":
 
 
 # -------------------------------------------------------------
-# 5. SETTINGS
+# 5. EMBEDDABLE CHATBOT
+# -------------------------------------------------------------
+elif menu == "Embeddable Chatbot":
+    st.header("🌐 Website-Embeddable Chatbot Widget")
+    st.caption("Deploy your local privacy-preserving document RAG as an interactive floating chatbot on any external website.")
+
+    st.markdown("""
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 8px 0; color: #38bdf8;">✨ Zero-Conflict Native Shadow DOM Technology</h4>
+        <p style="margin: 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.5;">
+            The embeddable chatbot script creates an isolated <strong>Shadow DOM</strong> boundary.
+            Your host website's stylesheets (Bootstrap, Tailwind, WordPress themes, etc.) will never break the chatbot,
+            and the chatbot's styles will never alter your host webpage. It supports real-time token streaming via SSE,
+            markdown parsing, interactive source citations, and custom brand colors.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_cfg, col_preview = st.columns([1, 1], gap="large")
+
+    with col_cfg:
+        st.subheader("🎨 Widget Customizer")
+        custom_title = st.text_input("Chatbot Title", value="Document Assistant")
+        custom_subtitle = st.text_input("Subtitle / Tagline", value="Offline Grounded Knowledge")
+
+        color_col1, color_col2 = st.columns([1, 2])
+        with color_col1:
+            theme_color = st.color_picker("Brand Theme Color", value="#0284c7")
+        with color_col2:
+            widget_position = st.selectbox("Floating Bubble Position", ["bottom-right", "bottom-left"])
+
+        custom_greeting = st.text_area(
+            "Initial Greeting Message",
+            value="Hello! 👋 I am your offline document assistant. Ask me questions about your uploaded documents, and I will answer with verified citations.",
+            height=80,
+        )
+        custom_suggestions = st.text_input(
+            "Suggested Prompts (pipe separated)",
+            value="Summarize key documents|What are the main findings?|List technical specs",
+        )
+
+        st.divider()
+
+        st.subheader("📋 Integration Code Snippets")
+        code_tab1, code_tab2, code_tab3 = st.tabs(["1-Line Script (Recommended)", "Iframe Embed", "React / Next.js"])
+
+        script_code = f"""<!-- Paste before closing </body> tag on any website -->
+<script 
+  src="{API_BASE_URL}/static/chat-widget.js" 
+  data-api-url="{API_BASE_URL}"
+  data-title="{custom_title}"
+  data-subtitle="{custom_subtitle}"
+  data-primary-color="{theme_color}"
+  data-position="{widget_position}"
+  data-greeting="{custom_greeting}"
+  data-suggestions="{custom_suggestions}"
+  defer>
+</script>"""
+
+        with code_tab1:
+            st.code(script_code, language="html")
+            st.caption("Works on any static HTML, WordPress, Webflow, Squarespace, Wix, Shopify, or custom web platform.")
+
+        iframe_url = f"{API_BASE_URL}/widget/embed?api={API_BASE_URL}&title={requests.utils.quote(custom_title)}&color={requests.utils.quote(theme_color)}&greeting={requests.utils.quote(custom_greeting)}&suggestions={requests.utils.quote(custom_suggestions)}"
+        iframe_code = f"""<iframe 
+  src="{iframe_url}"
+  width="100%" 
+  height="600" 
+  frameborder="0" 
+  style="border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 420px;"
+  title="{custom_title}">
+</iframe>"""
+
+        with code_tab2:
+            st.code(iframe_code, language="html")
+            st.caption("Perfect for sandboxed environments or CMS builders that restrict arbitrary JavaScript execution.")
+
+        react_code = f"""import {{ useEffect }} from "react";
+
+export default function DocumentChatWidget() {{
+  useEffect(() => {{
+    const script = document.createElement("script");
+    script.src = "{API_BASE_URL}/static/chat-widget.js";
+    script.setAttribute("data-api-url", "{API_BASE_URL}");
+    script.setAttribute("data-title", "{custom_title}");
+    script.setAttribute("data-primary-color", "{theme_color}");
+    script.setAttribute("data-position", "{widget_position}");
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {{
+      const root = document.getElementById("rag-chat-widget-root");
+      if (root) root.remove();
+      delete window.__RAG_CHAT_WIDGET_LOADED__;
+    }};
+  }}, []);
+
+  return null;
+}}"""
+
+        with code_tab3:
+            st.code(react_code, language="javascript")
+            st.caption("Drop-in component for React, Next.js (App / Pages router), Remix, or Vite.")
+
+    with col_preview:
+        st.subheader("🖥️ Live Embedded Preview")
+        st.caption("Real-time preview of the standalone embed interface connecting to your active local RAG backend:")
+
+        st.components.v1.iframe(
+            src=iframe_url,
+            height=600,
+            scrolling=False,
+        )
+
+        st.markdown(f"""
+        <div style="text-align: center; margin-top: 12px;">
+            <a href="{API_BASE_URL}/widget/demo" target="_blank" style="display: inline-block; padding: 8px 16px; background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 8px; color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 13px;">
+                🚀 Open Full Interactive Demo Studio in New Tab ↗
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# -------------------------------------------------------------
+# 6. SETTINGS
 # -------------------------------------------------------------
 elif menu == "Settings":
     st.header("⚙️ Application Configuration")
@@ -579,7 +703,7 @@ elif menu == "Settings":
 
 
 # -------------------------------------------------------------
-# 6. EVALUATION DASHBOARD
+# 7. EVALUATION DASHBOARD
 # -------------------------------------------------------------
 elif menu == "Evaluation":
     st.header("📈 RAG Evaluation Framework")

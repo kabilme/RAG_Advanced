@@ -5,6 +5,7 @@ from app.api.routes.documents import router as documents_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.retrieval import router as retrieval_router
 from app.api.routes.settings import router as settings_router
+from app.api.routes.widget import router as widget_router
 
 __all__ = [
     "health_router",
@@ -12,4 +13,5 @@ __all__ = [
     "chat_router",
     "retrieval_router",
     "settings_router",
+    "widget_router",
 ]

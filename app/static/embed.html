@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Document Assistant Chatbot</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    :root {
+      --rag-primary: #0284c7;
+      --rag-primary-dark: #0369a1;
+      --rag-bg-dark: #0f172a;
+      --rag-surface: #1e293b;
+      --rag-surface-subtle: #334155;
+      --rag-border: rgba(255, 255, 255, 0.12);
+      --rag-text-main: #f8fafc;
+      --rag-text-muted: #94a3b8;
+      --rag-bot-bubble: #1e293b;
+      --rag-user-bubble: var(--rag-primary);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--rag-bg-dark);
+      color: var(--rag-text-main);
+      overflow: hidden;
+    }
+
+    .rag-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .rag-header {
+      padding: 14px 18px;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+      border-bottom: 1px solid var(--rag-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .rag-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .rag-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(2, 132, 199, 0.2);
+      border: 1px solid rgba(2, 132, 199, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .rag-header-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rag-header-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .rag-header-subtitle {
+      font-size: 11px;
+      color: var(--rag-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 1px;
+    }
+
+    .rag-indicator-pill {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55e;
+    }
+
+    .rag-indicator-pill.offline {
+      background: #ef4444;
+      box-shadow: 0 0 6px #ef4444;
+    }
+
+    .rag-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rag-btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: transparent;
+      border: none;
+      color: var(--rag-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .rag-btn-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--rag-text-main);
+    }
+
+    .rag-btn-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* Messages */
+    .rag-messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+
+    .rag-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .rag-messages::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    .rag-msg {
+      display: flex;
+      gap: 10px;
+      max-width: 90%;
+      animation: rag-fade-in 0.25s ease-out forwards;
+    }
+
+    @keyframes rag-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .rag-msg.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .rag-msg.assistant {
+      align-self: flex-start;
+    }
+
+    .rag-msg-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .rag-msg-bubble {
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .rag-msg.user .rag-msg-bubble {
+      background: var(--rag-user-bubble);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .rag-msg.assistant .rag-msg-bubble {
+      background: var(--rag-bot-bubble);
+      color: var(--rag-text-main);
+      border: 1px solid var(--rag-border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .rag-msg-bubble p {
+      margin-bottom: 8px;
+    }
+
+    .rag-msg-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .rag-msg-bubble strong {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .rag-msg-bubble code {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #fca5a5;
+    }
+
+    .rag-msg-bubble pre {
+      background: #090d16;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+
+    .rag-msg-bubble pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #e2e8f0;
+    }
+
+    .rag-msg-bubble ul, .rag-msg-bubble ol {
+      margin-left: 18px;
+      margin-bottom: 8px;
+    }
+
+    .rag-msg-bubble li {
+      margin-bottom: 4px;
+    }
+
+    /* Citation Badge */
+    .rag-citation-tag {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-family: monospace;
+      margin: 2px 2px 2px 0;
+    }
+
+    /* Sources Accordion */
+    .rag-sources-accordion {
+      margin-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 8px;
+    }
+
+    .rag-sources-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #38bdf8;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+    }
+
+    .rag-sources-header:hover {
+      color: #7dd3fc;
+    }
+
+    .rag-sources-list {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .rag-sources-accordion.open .rag-sources-list {
+      display: flex;
+    }
+
+    .rag-source-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 11px;
+    }
+
+    .rag-source-tag {
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 4px;
+    }
+
+    .rag-source-snippet {
+      color: #94a3b8;
+      line-height: 1.4;
+      font-style: italic;
+    }
+
+    /* Typing indicator */
+    .rag-typing-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+    }
+
+    .rag-typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      opacity: 0.4;
+      animation: rag-pulse 1.4s infinite ease-in-out;
+    }
+
+    .rag-typing-dot:nth-child(1) { animation-delay: 0s; }
+    .rag-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .rag-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes rag-pulse {
+      0%, 80%, 100% { transform: scale(0.8); opacity: 0.3; }
+      40% { transform: scale(1.2); opacity: 1; }
+    }
+
+    /* Suggestions */
+    .rag-suggestions {
+      padding: 0 16px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .rag-suggestion-pill {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .rag-suggestion-pill:hover {
+      background: rgba(2, 132, 199, 0.2);
+      border-color: rgba(2, 132, 199, 0.5);
+      color: #ffffff;
+    }
+
+    /* Input */
+    .rag-input-area {
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid var(--rag-border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .rag-input-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--rag-border);
+      border-radius: 12px;
+      padding: 6px 10px;
+    }
+
+    .rag-input-box:focus-within {
+      border-color: var(--rag-primary);
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+    }
+
+    .rag-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--rag-text-main);
+      font-size: 13.5px;
+      line-height: 1.4;
+      height: 24px;
+    }
+
+    .rag-input::placeholder {
+      color: var(--rag-text-muted);
+    }
+
+    .rag-send-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--rag-primary);
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .rag-send-btn:hover:not(:disabled) {
+      background: var(--rag-primary-dark);
+      transform: scale(1.05);
+    }
+
+    .rag-send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .rag-send-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .rag-footer {
+      font-size: 10.5px;
+      color: var(--rag-text-muted);
+      text-align: center;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="rag-container">
+    <!-- Header -->
+    <div class="rag-header">
+      <div class="rag-header-left">
+        <div class="rag-avatar" id="botAvatar">🛡️</div>
+        <div class="rag-header-info">
+          <span class="rag-header-title" id="botTitle">Document Assistant</span>
+          <span class="rag-header-subtitle">
+            <span class="rag-indicator-pill" id="statusPill"></span>
+            <span id="statusText">Local RAG • Grounded</span>
+          </span>
+        </div>
+      </div>
+      <div class="rag-header-actions">
+        <button class="rag-btn-icon" id="resetBtn" title="Start New Conversation">
+          <svg viewBox="0 0 24 24">
+            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="rag-messages" id="messagesContainer"></div>
+
+    <!-- Suggested Prompts -->
+    <div class="rag-suggestions" id="suggestionsContainer"></div>
+
+    <!-- Input Area -->
+    <div class="rag-input-area">
+      <div class="rag-input-box">
+        <input type="text" class="rag-input" id="chatInput" placeholder="Ask a question about your documents..." />
+        <button class="rag-send-btn" id="sendBtn" title="Send message">
+          <svg viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="rag-footer">
+        🔒 Private Offline RAG • Strictly Document-Grounded
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const apiUrl = urlParams.get("api") || window.location.origin;
+      const title = urlParams.get("title") || "Document Assistant";
+      const color = urlParams.get("color");
+      const greeting = urlParams.get("greeting") || "Hello! 👋 I'm your document assistant. Ask me questions about your uploaded documents, and I will answer with verified citations.";
+      const rawSuggestions = urlParams.get("suggestions");
+      const suggestions = rawSuggestions ? rawSuggestions.split("|") : [
+        "Summarize the key documents",
+        "What are the main findings?",
+        "Explain the technical specifications"
+      ];
+
+      if (color) {
+        document.documentElement.style.setProperty("--rag-primary", color);
+      }
+      document.getElementById("botTitle").textContent = title;
+
+      let sessionId = "embed_session_" + Date.now();
+      let isGenerating = false;
+
+      const messagesContainer = document.getElementById("messagesContainer");
+      const suggestionsContainer = document.getElementById("suggestionsContainer");
+      const chatInput = document.getElementById("chatInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const statusPill = document.getElementById("statusPill");
+      const statusText = document.getElementById("statusText");
+
+      function formatMarkdown(text) {
+        if (!text) return "";
+        let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/g, (m, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
+        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+        html = html.replace(/\[Source:\s*([^,;\]]+)(?:[,;]\s*(?:Pages?|p\.|pp\.|Slides?|Sheets?|Sections?):?\s*([^\]]+))?\]/gi, (m) => `<span class="rag-citation-tag">${m}</span>`);
+        html = html.replace(/^\s*[\-\*]\s+(.+)$/gm, "<li>$1</li>");
+        html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+        const paragraphs = html.split(/\n\s*\n/);
+        return paragraphs.map(p => {
+          p = p.trim();
+          if (!p) return "";
+          if (p.startsWith("<pre>") || p.startsWith("<ul>") || p.startsWith("<ol>")) return p;
+          return `<p>${p.replace(/\n/g, "<br/>")}</p>`;
+        }).join("");
+      }
+
+      function addMessage(role, text, sources = null) {
+        const msgEl = document.createElement("div");
+        msgEl.className = `rag-msg ${role}`;
+        const avatar = document.createElement("div");
+        avatar.className = "rag-msg-avatar";
+        avatar.textContent = role === "user" ? "👤" : "🛡️";
+
+        const bubble = document.createElement("div");
+        bubble.className = "rag-msg-bubble";
+
+        if (role === "assistant") {
+          bubble.innerHTML = formatMarkdown(text);
+          if (sources && sources.length > 0) {
+            bubble.appendChild(buildSourcesAccordion(sources));
+          }
+        } else {
+          bubble.textContent = text;
+        }
+
+        msgEl.appendChild(avatar);
+        msgEl.appendChild(bubble);
+        messagesContainer.appendChild(msgEl);
+        scrollToBottom();
+        return bubble;
+      }
+
+      function buildSourcesAccordion(sources) {
+        const accordion = document.createElement("div");
+        accordion.className = "rag-sources-accordion";
+        const header = document.createElement("div");
+        header.className = "rag-sources-header";
+        header.innerHTML = `<span>📚 Verified Sources (${sources.length})</span> <span>▾</span>`;
+
+        const list = document.createElement("div");
+        list.className = "rag-sources-list";
+        sources.forEach(src => {
+          const item = document.createElement("div");
+          item.className = "rag-source-item";
+          const tag = src.raw_citation || src.citation || `[Source: ${src.filename || "Document"}]`;
+          const score = src.similarity_score ? ` (Relevance: ${src.similarity_score.toFixed(2)})` : "";
+          item.innerHTML = `<div class="rag-source-tag">${tag} ${score}</div><div class="rag-source-snippet">${src.snippet || ""}</div>`;
+          list.appendChild(item);
+        });
+
+        header.addEventListener("click", () => {
+          accordion.classList.toggle("open");
+          const arrow = header.querySelector("span:last-child");
+          arrow.textContent = accordion.classList.contains("open") ? "▴" : "▾";
+        });
+
+        accordion.appendChild(header);
+        accordion.appendChild(list);
+        return accordion;
+      }
+
+      function showTyping() {
+        const msgEl = document.createElement("div");
+        msgEl.className = "rag-msg assistant";
+        const avatar = document.createElement("div");
+        avatar.className = "rag-msg-avatar";
+        avatar.textContent = "🛡️";
+        const bubble = document.createElement("div");
+        bubble.className = "rag-msg-bubble";
+        bubble.innerHTML = `<div class="rag-typing-indicator"><span class="rag-typing-dot"></span><span class="rag-typing-dot"></span><span class="rag-typing-dot"></span></div>`;
+        msgEl.appendChild(avatar);
+        msgEl.appendChild(bubble);
+        messagesContainer.appendChild(msgEl);
+        scrollToBottom();
+        return msgEl;
+      }
+
+      function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      function renderSuggestions() {
+        suggestionsContainer.innerHTML = "";
+        suggestions.forEach(text => {
+          const pill = document.createElement("button");
+          pill.className = "rag-suggestion-pill";
+          pill.textContent = text.trim();
+          pill.addEventListener("click", () => {
+            chatInput.value = text.trim();
+            handleSend();
+          });
+          suggestionsContainer.appendChild(pill);
+        });
+      }
+
+      async function checkHealth() {
+        try {
+          const resp = await fetch(`${apiUrl}/health`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.ollama_connected) {
+              statusPill.classList.remove("offline");
+              statusText.textContent = `${data.configured_model} • Grounded`;
+            } else {
+              statusPill.classList.add("offline");
+              statusText.textContent = "Ollama Offline";
+            }
+          }
+        } catch(e) {
+          statusPill.classList.add("offline");
+          statusText.textContent = "Backend Unreachable";
+        }
+      }
+
+      async function handleSend() {
+        if (isGenerating) return;
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        suggestionsContainer.style.display = "none";
+        addMessage("user", text);
+        chatInput.value = "";
+        isGenerating = true;
+        sendBtn.disabled = true;
+
+        const typingEl = showTyping();
+        const payload = { question: text, session_id: sessionId };
+
+        try {
+          const streamUrl = `${apiUrl}/chat/stream`;
+          const response = await fetch(streamUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) throw new Error("HTTP " + response.status);
+
+          typingEl.remove();
+          const bubble = addMessage("assistant", "");
+          let accumulatedTokens = "";
+          let sources = [];
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(trimmed.substring(6));
+                  if (data.type === "sources") {
+                    sources = data.data || [];
+                  } else if (data.type === "token") {
+                    accumulatedTokens += data.content || "";
+                    bubble.innerHTML = formatMarkdown(accumulatedTokens);
+                    scrollToBottom();
+                  } else if (data.type === "done") {
+                    if (data.citations && data.citations.length > 0) sources = data.citations;
+                    if (data.answer) accumulatedTokens = data.answer;
+                  } else if (data.type === "error") {
+                    accumulatedTokens += `\n\n⚠️ *${data.message || "An error occurred."}*`;
+                    bubble.innerHTML = formatMarkdown(accumulatedTokens);
+                  }
+                } catch(e) {}
+              }
+            }
+          }
+
+          bubble.innerHTML = formatMarkdown(accumulatedTokens);
+          if (sources && sources.length > 0) {
+            bubble.appendChild(buildSourcesAccordion(sources));
+          }
+          scrollToBottom();
+        } catch(err) {
+          typingEl.remove();
+          try {
+            const fallbackResp = await fetch(`${apiUrl}/chat/query`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (fallbackResp.ok) {
+              const data = await fallbackResp.json();
+              addMessage("assistant", data.answer, data.source_cards || data.citations);
+            } else {
+              throw err;
+            }
+          } catch(e) {
+            addMessage("assistant", `⚠️ **Connection Error**: Unable to reach backend at \`${apiUrl}\`. Please ensure the server is running.`);
+          }
+        } finally {
+          isGenerating = false;
+          sendBtn.disabled = false;
+          chatInput.focus();
+        }
+      }
+
+      sendBtn.addEventListener("click", handleSend);
+      chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        if (confirm("Reset conversation?")) {
+          sessionId = "embed_session_" + Date.now();
+          messagesContainer.innerHTML = "";
+          addMessage("assistant", greeting);
+          suggestionsContainer.style.display = "flex";
+          renderSuggestions();
+        }
+      });
+
+      // Initialize
+      addMessage("assistant", greeting);
+      renderSuggestions();
+      checkHealth();
+    })();
+  </script>
+</body>
+</html>
