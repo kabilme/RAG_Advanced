@@ -1,5 +1,8 @@
 # Local Advanced RAG System
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-brightgreen.svg)](#prerequisites)
+
 A self-contained, enterprise-grade, privacy-focused Retrieval-Augmented Generation (RAG) platform built with Python, local embeddings, persistent ChromaDB, hybrid BM25 lexical search, cross-encoder reranking, and local Ollama LLMs.
 
 Includes a **website-embeddable chatbot widget** powered by native Shadow DOM that can be dropped into any external website with a single `<script>` tag or `<iframe>`.
@@ -303,3 +306,10 @@ Run the comprehensive automated test suite (76 tests covering all modules):
 - **Document Ingestion**: Validates PDF, DOCX, PPTX, XLSX, CSV, Markdown, and HTML extraction pipelines.
 - **Citations**: Validates regex extraction flexibility, hallucinated page number autocorrection, and ungrounded tag stripping.
 - **Vector Store & Hybrid Search**: Validates ChromaDB CRUD, cosine distance thresholds, BM25 indexing, and RRF rank fusion.
+
+---
+
+## License
+
+This project is licensed under the terms of the [MIT License](LICENSE).
+
