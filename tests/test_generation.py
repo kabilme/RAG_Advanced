@@ -339,5 +339,43 @@ def test_format_professional_markdown_aligns_first_item_and_promotes_title():
     assert "\n\nThese ecosystem functions are vital for human survival." in formatted
 
 
+def test_format_professional_markdown_fixes_inline_headings_and_squashed_lists():
+    from app.generation.answer_validator import AnswerValidator
+
+    raw = (
+        "Ecosystem Functions Serving Humans #### Ecosystem Functions and Ecosystem Services "
+        "Ecosystem functions and ecosystem services are inherent ways of working in Nature that benefit humans. "
+        "Ecosystem functions include: - Filtering water: Forests naturally filter water. "
+        "• Preventing soil erosion: Forests help prevent soil erosion. "
+        "• Maintaining soil moisture: Gentle ploughing causes minimal disturbance. "
+        "#### Resources Essential for Life Resources essential for life include: - Air: The air we breathe is essential. "
+        "• Water: Access to clean water is crucial. "
+        "#### Resources for Energy Resources for energy include: - Solar energy: Energy from the sun can be harnessed. "
+        "• Wind energy: Energy from wind can be harnessed."
+    )
+
+    cleaned = AnswerValidator.clean_meta_language(raw)
+    formatted = AnswerValidator.format_professional_markdown(cleaned)
+
+    # 1. No raw '####' should remain
+    assert "####" not in formatted
+
+    # 2. Section headings must be on their own line with '###'
+    assert "### Ecosystem Functions and Ecosystem Services\n\n" in formatted
+    assert "### Resources Essential for Life\n\n" in formatted
+    assert "### Resources for Energy\n\n" in formatted
+
+    # 3. Intro clauses must be separated from bullet items
+    assert "Ecosystem functions include:\n\n- **Filtering water**: Forests naturally filter water." in formatted
+    assert "Resources essential for life include:\n\n- **Air**: The air we breathe is essential." in formatted
+    assert "Resources for energy include:\n\n- **Solar energy**: Energy from the sun can be harnessed." in formatted
+
+    # 4. Standard bullets must be preserved
+    assert "- **Preventing soil erosion**: Forests help prevent soil erosion." in formatted
+    assert "- **Water**: Access to clean water is crucial." in formatted
+    assert "- **Wind energy**: Energy from wind can be harnessed." in formatted
+
+
+
 
 

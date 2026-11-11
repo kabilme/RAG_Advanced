@@ -204,7 +204,60 @@ class AnswerValidator:
 
             s = part
 
-            # 0. Elevate a standalone unpunctuated title line (<= 8 words) followed by text to a markdown heading:
+            # 0. Clean false-start title right before an inline heading on line 1:
+            s = re.sub(r"^([^#\n]{2,80}?)\s*(#{2,4}\s+)", r"\2", s)
+
+            # 0b. Detach inline headings anywhere in the text: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
+            s = re.sub(r"([^\n])\s*(#{2,4})\s*", r"\1\n\n\2 ", s)
+
+            # 0c. For any line starting with #{1,4}, separate the heading title from body text on the same line
+            lines = s.split("\n")
+            new_lines = []
+            small_words = {"and", "or", "of", "in", "for", "the", "a", "an", "to", "with", "on"}
+            for line in lines:
+                m = re.match(r"^(#{1,4})\s+(.+)$", line)
+                if not m:
+                    new_lines.append(line)
+                    continue
+                level, content = m.group(1), m.group(2).strip()
+                words = content.split()
+                split_done = False
+
+                # A. Look for phrase repetition (Title Case followed by sentence case/same words)
+                for k in range(min(8, len(words) // 2), 1, -1):
+                    phrase1 = " ".join(words[:k]).lower()
+                    phrase2 = " ".join(words[k:2*k]).lower()
+                    if phrase1 == phrase2:
+                        title = " ".join(words[:k])
+                        rest = " ".join(words[k:])
+                        new_lines.append(f"### {title}")
+                        new_lines.append("")
+                        new_lines.append(rest)
+                        split_done = True
+                        break
+
+                if not split_done:
+                    # B. Look for Title Case words (<= 8) followed by sentence starting with lowercase or clause
+                    for k in range(min(8, len(words) - 2), 1, -1):
+                        w_title = words[:k]
+                        is_title = all(w[0].isupper() or w.lower() in small_words for w in w_title)
+                        if is_title and (words[k][0].isupper() or words[k].lower() in small_words):
+                            if any(words[k+j][0].islower() for j in range(min(4, len(words)-k))):
+                                title = " ".join(w_title)
+                                rest = " ".join(words[k:])
+                                new_lines.append(f"### {title}")
+                                new_lines.append("")
+                                new_lines.append(rest)
+                                split_done = True
+                                break
+
+                if not split_done:
+                    # Normalize heading level to ###
+                    new_lines.append(f"### {content}")
+
+            s = "\n".join(new_lines)
+
+            # 0d. Elevate a standalone unpunctuated title line (<= 8 words) followed by text to a markdown heading:
             # e.g. "Ecosystem Functions Serving Humans\nThe available documentation..." -> "### Ecosystem Functions Serving Humans\n\nThe available..."
             first_line_match = re.match(r"^([A-Z][a-zA-Z0-9\s]{2,60})\n+([a-zA-Z0-9])", s)
             if first_line_match:
@@ -215,11 +268,15 @@ class AnswerValidator:
                 if not title.endswith((".", ":", ";", ",", "?", "!")) and len(title.split()) <= 8 and not title.startswith("#"):
                     s = f"### {title}\n\n" + rest
 
-            # 0b. If text starts with bold title like **Title**\nText, promote to ### Title\n\nText
+            # 0e. If text starts with bold title like **Title**\nText, promote to ### Title\n\nText
             s = re.sub(r"^\*{2}([^\n\*]+)\*{2}\n+([^\n])", r"### \1\n\n\2", s)
 
-            # 1. Fix inline first bullet stuck to colon introductory phrase:
-            # e.g. "Here are five examples: Filtering Water: ecosystems..." -> "Here are five examples:\n\n- Filtering Water: ecosystems..."
+            # 1. Detach intro phrase from preceding sentence: e.g. '...services. Ecosystem functions include:'
+            s = re.sub(r"(\.\s+)([A-Z][a-zA-Z0-9\s]{2,40}\s+(?:include|are|is|the following):)", r"\1\n\n\2", s)
+
+            # 1b. Fix inline first bullet stuck to colon introductory phrase:
+            # e.g. "include: - Filtering water: forests..." or "Here are five examples: Filtering Water: ecosystems..."
+            s = re.sub(r"(:\s*)-\s*", r":\n\n- ", s)
             s = re.sub(
                 r"(:\s*)(\*{0,2}[A-Z][a-zA-Z0-9\s]{2,40}\*{0,2}\s*[:\-]\s*[a-zA-Z])",
                 r":\n\n- \2",
@@ -261,6 +318,9 @@ class AnswerValidator:
             # 6. Ensure headers (### Section) have blank lines before and after
             s = re.sub(r"([^\n])\n(#{1,4}\s+[^\n]+)", r"\1\n\n\2", s)
             s = re.sub(r"(#{1,4}\s+[^\n]+)\n([^\n#])", r"\1\n\n\2", s)
+
+            # 6b. Clean stray empty heading hash marks if any escaped
+            s = re.sub(r"(?m)^#{1,6}\s*$", "", s)
 
             # 7. Ensure concluding paragraphs after a list have a blank line
             lines = s.split("\n")
