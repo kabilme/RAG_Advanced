@@ -84,6 +84,67 @@ class AnswerValidator:
         return is_grounded, unsupported
 
     @classmethod
+    def clean_meta_language(cls, text: str) -> str:
+        """Sanitizes generated answer text by removing meta-language, internal block references,
+        robotic preambles, and repetitive inline headings.
+        """
+        if not text:
+            return ""
+
+        s = text.strip()
+
+        # 1. Strip robotic opening preambles at the start
+        s = re.sub(
+            r"^(?:based\s+on|according\s+to)\s+the\s+(?:retrieved|provided)\s+(?:document\s+)?(?:context|information|excerpts|data)[,:]?\s*",
+            "",
+            s,
+            flags=re.IGNORECASE,
+        )
+        if s and s[0].islower():
+            s = s[0].upper() + s[1:]
+
+        # 2. 'As stated in Context Block X', 'According to Context Block X', 'In Context Block X', etc.
+        s = re.sub(
+            r"\b(?:as\s+(?:stated|mentioned|noted|discussed|indicated|described)\s+in|according\s+to|in|per|from)\s+(?:context\s+block|document\s+excerpt|excerpt)\s+\d+[,:]?\s*",
+            "",
+            s,
+            flags=re.IGNORECASE,
+        )
+
+        # 3. 'Context Block X (also )?(emphasizes|states|notes|highlights|discusses|mentions|points out|explains)... stating/noting:'
+        s = re.sub(
+            r"\b(?:context\s+block|document\s+excerpt|excerpt)\s+\d+\s+(?:also\s+)?(?:states|notes|highlights|emphasizes|discusses|mentions|points\s+out|explains|indicates|shows)[^,\n:]*[,:]?\s*(?:stating|noting|explaining|indicating)?[,:]?\s*",
+            "",
+            s,
+            flags=re.IGNORECASE,
+        )
+
+        # 4. Any leftover 'Context Block \d+' or 'Document Excerpt \d+'
+        s = re.sub(r"\b(?:context\s+block|document\s+excerpt)\s+\d+[,:]?\s*", "", s, flags=re.IGNORECASE)
+
+        # 5. Clean meta phrases in body text
+        s = re.sub(r"\bthe\s+retrieved\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
+        s = re.sub(r"\bretrieved\s+context\b", "available documentation", s, flags=re.IGNORECASE)
+        s = re.sub(r"\bthe\s+provided\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
+
+        # 6. Unquote text following bullet colon if quotes were wrapped around the excerpt
+        s = re.sub(r'(:\s*)"([^"]+)"', r"\1\2", s)
+
+        # 7. Deduplicate repeating inline titles (e.g. '• Title: Title: text')
+        lines = []
+        for line in s.split("\n"):
+            m = re.match(r"^(\s*[-*•\d.]+\s*)([^:\n]+):\s*\2\s*:\s*(.*)$", line, re.IGNORECASE)
+            if m:
+                lines.append(f"{m.group(1)}{m.group(2)}: {m.group(3)}")
+            else:
+                lines.append(line)
+        s = "\n".join(lines)
+
+        # 8. Clean redundant inline spaces
+        s = re.sub(r"[ \t]{2,}", " ", s)
+        return s.strip()
+
+    @classmethod
     def validate_answer(
         cls,
         question: str,
@@ -116,6 +177,9 @@ class AnswerValidator:
         cleaned_body = re.sub(r"^" + re.escape(ABSTENTION_MESSAGE) + r"\s*", "", answer).strip()
         if cleaned_body:
             answer = cleaned_body
+
+        # Clean meta-language, internal block references, robotic preambles, and duplicate headings
+        answer = cls.clean_meta_language(answer)
 
         # 3. Check numerical grounding
         combined_context = " ".join(c.text for c in chunks)

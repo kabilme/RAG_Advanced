@@ -66,6 +66,41 @@ class CitationManager:
         return loc_type.capitalize()
 
     @classmethod
+    def normalize_citations(cls, text: str) -> str:
+        """Normalizes various citation styles into standard format [Source: filename.ext, LocationType: Value]."""
+        if not text:
+            return ""
+
+        # Normalize (filename.pdf, Page 18) or [filename.pdf, Page 18] or (Source: filename.pdf, Page: 18)
+        def _repl_loc(match):
+            fname = match.group(1).strip()
+            loc_type = match.group(2).strip()
+            loc_val = match.group(3).strip()
+            norm_type = cls.normalize_location_type(loc_type) or "Page"
+            return f"[Source: {fname}, {norm_type}: {loc_val}]"
+
+        p1 = re.compile(
+            r"[\(\[]\s*(?:Source:\s*)?([a-zA-Z0-9_\-\. ]+\.[a-zA-Z0-9]{2,5})\s*,\s*(Pages?|p\.|pp\.|Slides?|Sheets?|Sections?):?\s*([^\]\)]+)[\)\]]",
+            re.IGNORECASE,
+        )
+        s = p1.sub(_repl_loc, text)
+
+        # Normalize (filename.pdf) or [filename.pdf] without location
+        p2 = re.compile(
+            r"[\(\[]\s*(?:Source:\s*)?([a-zA-Z0-9_\-\. ]+\.[a-zA-Z0-9]{2,5})\s*[\)\]]",
+            re.IGNORECASE,
+        )
+        def _repl_noloc(match):
+            raw = match.group(0)
+            if raw.startswith("[Source:"):
+                return raw
+            fname = match.group(1).strip()
+            return f"[Source: {fname}]"
+
+        s = p2.sub(_repl_noloc, s)
+        return s
+
+    @classmethod
     def extract_citations(cls, text: str) -> List[Tuple[str, str, Optional[str], Optional[str]]]:
         """Finds all citation tags in generated text.
         
@@ -97,6 +132,7 @@ class CitationManager:
         4. Hallucinated page numbers (e.g., printed book pages) are auto-corrected
            to the actual retrieved chunk's location when the text context matches.
         """
+        answer_text = cls.normalize_citations(answer_text)
         raw_citations = cls.extract_citations(answer_text)
         validated_items: List[CitationItem] = []
         sanitized_text = answer_text

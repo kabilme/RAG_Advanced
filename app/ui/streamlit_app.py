@@ -362,9 +362,15 @@ elif menu == "Grounded Chat":
                 finally:
                     status_placeholder.empty()
 
-            full_answer = st.write_stream(stream_response)
+            answer_placeholder = st.empty()
+            full_answer = answer_placeholder.write_stream(stream_response)
             if isinstance(full_answer, list):
                 full_answer = "".join(str(item) for item in full_answer)
+
+            # If post-validation sanitized meta-language or normalized citations, immediately update the display
+            saved_answer = sources_container.get("final_answer") or full_answer
+            if sources_container.get("final_answer") and sources_container.get("final_answer").strip() != full_answer.strip():
+                answer_placeholder.markdown(saved_answer)
 
             display_sources = sources_container.get("verified_citations") or sources_container.get("sources", [])
             if display_sources:
@@ -379,7 +385,6 @@ elif menu == "Grounded Chat":
                         </div>
                         """, unsafe_allow_html=True)
 
-            saved_answer = sources_container.get("final_answer") or full_answer
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": saved_answer,

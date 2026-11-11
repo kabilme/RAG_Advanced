@@ -160,3 +160,56 @@ def test_ollama_client_acceleration_options():
         opts = client._build_options()
         assert opts["num_gpu"] == 99
 
+
+def test_clean_meta_language_removes_context_blocks():
+    from app.generation.answer_validator import AnswerValidator
+
+    raw_response = (
+        "Based on the retrieved document context, some considerations to keep in mind in the production of goods for our current use include:\n\n"
+        "• Reducing waste and pollution: As stated in Context Block 2, \"The factors - land, labour, capital, entrepreneurship and technology are combined to produce goods and services.\" (hees107.pdf, Page 18)\n"
+        "• Using natural resources responsibly: Context Block 5 emphasizes the importance of using natural resources responsibly, stating, \"Businesses or Enterprises combine various inputs or factors of production to create goods and services.\" (hees107.pdf, Page 16)\n"
+        "• Investing in technology and skills: Context Block 3 highlights the significance of technology and skills in production, noting, \"Technology is a facilitator.\" (hees107.pdf, Page 16)\n"
+        "• Fair compensation and working conditions: Context Block 10 discusses the responsibilities of businesses towards their workers, stating, \"Fair compensation and working conditions: Employers need to ensure that workers are paid fairly for their labour.\" (hees107.pdf, Page 19)\n"
+        "• Addressing social and environmental concerns: Context Block 10 highlights the importance of addressing social and environmental concerns, stating, \"Businesses are motivated to address social and environmental concerns.\" (hees107.pdf, Page 19)\n\n"
+        "While the retrieved context does not provide a comprehensive list of considerations to keep in mind in the production of goods for our current use, it does offer valuable insights."
+    )
+
+    cleaned = AnswerValidator.clean_meta_language(raw_response)
+
+    # 1. No "Context Block" should remain anywhere
+    assert "Context Block" not in cleaned
+    assert "context block" not in cleaned.lower()
+
+    # 2. Robotic preamble should be stripped
+    assert not cleaned.startswith("Based on the retrieved")
+    assert cleaned.startswith("Some considerations to keep in mind")
+
+    # 3. Repetitive inline titles should be deduplicated
+    assert "Fair compensation and working conditions: Fair compensation and working conditions:" not in cleaned
+    assert "Fair compensation and working conditions: Employers need to ensure" in cleaned
+
+    # 4. Meta references in closing paragraph cleaned
+    assert "the retrieved context" not in cleaned.lower()
+    assert "the available documentation" in cleaned.lower()
+
+
+def test_citation_normalization():
+    from app.generation.citation_manager import CitationManager
+
+    text_with_parens = "Here is a fact (hees107.pdf, Page 18) and another [report.docx, Section: Intro]."
+    normalized = CitationManager.normalize_citations(text_with_parens)
+    assert "[Source: hees107.pdf, Page: 18]" in normalized
+    assert "[Source: report.docx, Section: Intro]" in normalized
+
+    # Single document citation without location
+    text_noloc = "As detailed in (notes.txt)."
+    normalized_noloc = CitationManager.normalize_citations(text_noloc)
+    assert "[Source: notes.txt]" in normalized_noloc
+
+
+def test_prompt_builder_avoids_context_block_labels(test_chunks):
+    context = PromptBuilder.format_context_block(test_chunks)
+    assert "Context Block" not in context
+    assert "Document Excerpt 1" in context
+
+
