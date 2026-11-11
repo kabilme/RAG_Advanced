@@ -110,7 +110,10 @@
     });
 
     // 3. Detach inline headings: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
-    s = s.replace(/([^\n])\s*(#{2,4})\s*/g, '$1\n\n$2 ');
+    s = s.replace(/([^#\n])\s*(#{2,4}\s+)/g, '$1\n\n$2');
+
+    // 3b. Remove any stray isolated single hash on its own line
+    s = s.replace(/^#\s*$/gm, '');
 
     // 4. Detach inline bullets following a citation: e.g. '[Source: ...] - Next Item:'
     s = s.replace(/(\[[^\]]+\])\s*-\s*/g, '$1\n\n- ');

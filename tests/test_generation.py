@@ -407,6 +407,28 @@ def test_format_professional_markdown_unpacks_citation_delimited_inline_lists():
     assert "\n\nThese cultural practices demonstrate a mindful approach to natural resources." in formatted
 
 
+def test_format_professional_markdown_no_isolated_hash():
+    """Verify that leading markdown headings do not produce a stray isolated '#'."""
+    from app.generation.answer_validator import AnswerValidator
+
+    raw = (
+        "### Cultural Practices Indicating Mindfulness in Natural Resource Use\n\n"
+        "Practices in Home and Neighborhood - Water Conservation Practices: In many households, "
+        "water conservation practices are implemented [Source: hees107.pdf, Page: 18]."
+    )
+    formatted = AnswerValidator.format_professional_markdown(raw)
+    assert not formatted.startswith("#\n")
+    assert not formatted.startswith("# \n")
+    assert formatted.startswith("### Cultural Practices Indicating Mindfulness in Natural Resource Use")
+    assert "#\n\n##" not in formatted
+
+    # Also verify isolated '#' on a line by itself is completely stripped
+    raw_stray = "#\n\nCultural Practices Indicating Mindfulness in Natural Resource Use"
+    formatted_stray = AnswerValidator.format_professional_markdown(raw_stray)
+    assert not formatted_stray.startswith("#\n")
+
+
+
 
 
 

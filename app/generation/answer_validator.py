@@ -208,7 +208,9 @@ class AnswerValidator:
             s = re.sub(r"^([^#\n]{2,80}?)\s*(#{2,4}\s+)", r"\2", s)
 
             # 0b. Detach inline headings anywhere in the text: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
-            s = re.sub(r"([^\n])\s*(#{2,4})\s*", r"\1\n\n\2 ", s)
+            s = re.sub(r"([^#\n])\s*(#{2,4}\s+)", r"\1\n\n\2", s)
+            # Remove any stray isolated single hash on its own line
+            s = re.sub(r"^#\s*$", "", s, flags=re.MULTILINE)
 
             # 0c. For any line, separate title from body text or intro sentence if squashed together:
             # e.g. 'Cultural Practices Pointing to... The available documentation highlights...'
@@ -255,6 +257,12 @@ class AnswerValidator:
                             new_lines.append(rest)
                             split_done = True
                             break
+
+                    if not split_done:
+                        # If the entire heading is already proper Title Case, keep it intact
+                        if all(w[0].isupper() or w.lower() in small_words for w in words):
+                            new_lines.append(f"### {content}")
+                            split_done = True
 
                     if not split_done:
                         # Title Case words (<= 8) followed by sentence starting with lowercase or clause
