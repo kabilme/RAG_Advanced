@@ -98,6 +98,7 @@ class AnswerValidator:
             r"(?i)(?:\n+|\s+)(?:citation\s+tags?|references?|sources?)\s*:.*$",
             "",
             s,
+            flags=re.DOTALL,
         ).strip()
 
         # 2. Strip robotic opening preambles at the start
@@ -226,7 +227,7 @@ class AnswerValidator:
 
                 # A. Check Title Case heading followed by intro sentence ('The [a-z]', 'Here [a-z]', etc.)
                 m_title = re.match(
-                    r"^(#{1,4}\s*)?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)\s+((?:The|Here|According|Based|This|These|Some|Several|In|To)\s+[a-z]+.*)$",
+                    r"^(#{1,4}\s*)?(?:\*{2})?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)(?:\*{2})?\s*[:\-]?\s+((?:The|Here|According|Based|Below|These|This|Some|Several)\s+[a-z]+.*)$",
                     line_str,
                 )
                 if m_title:

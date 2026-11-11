@@ -101,8 +101,11 @@
     s = s.replace(/\bthe\s+retriev(?:al|ed)\s+(?:document\s+)?context\b/gi, 'the available documentation');
     s = s.replace(/\bretriev(?:al|ed)\s+(?:document\s+)?context\b/gi, 'available documentation');
 
+    // 1b. Strip trailing raw reference dumps
+    s = s.replace(/(?:\n+|\s+)(?:citation\s+tags?|references?|sources?)\s*:[\s\S]*$/i, '').trim();
+
     // 2. Separate Title Case phrase squashed together with intro sentence on line 1
-    s = s.replace(/^(#{1,4}\s*)?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)\s+((?:The|Here|According|Based|This|These|Some|Several|In|To)\s+[a-z]+.*)$/gm, function (m, h, title, intro) {
+    s = s.replace(/^(#{1,4}\s*)?(?:\*{2})?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)(?:\*{2})?\s*[:\-]?\s+((?:The|Here|According|Based|Below|These|This|Some|Several)\s+[a-z]+.*)$/gm, function (m, h, title, intro) {
       if (title.split(/\s+/).length <= 10) {
         return `### ${title}\n\n${intro}`;
       }

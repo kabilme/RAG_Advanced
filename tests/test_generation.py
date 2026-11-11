@@ -428,6 +428,34 @@ def test_format_professional_markdown_no_isolated_hash():
     assert not formatted_stray.startswith("#\n")
 
 
+def test_format_professional_markdown_separates_intro_sentence_from_title():
+    """Verify that intro sentences (e.g. 'Here are five...') are detached to a new line."""
+    from app.generation.answer_validator import AnswerValidator
+
+    variants = [
+        "**Ecosystem Functions that Serve Humans** Here are five ecosystem functions that serve humans:\n- **Item 1**: Desc.",
+        "**Ecosystem Functions that Serve Humans**: Here are five ecosystem functions that serve humans:\n- **Item 1**: Desc.",
+        "Ecosystem Functions that Serve Humans Here are five ecosystem functions that serve humans:\n- **Item 1**: Desc.",
+        "Ecosystem Functions that Serve Humans: Here are five ecosystem functions that serve humans:\n- **Item 1**: Desc.",
+        "### Ecosystem Functions that Serve Humans Here are five ecosystem functions that serve humans:\n- **Item 1**: Desc.",
+    ]
+
+    for v in variants:
+        res = AnswerValidator.format_professional_markdown(v)
+        assert res.startswith("### Ecosystem Functions that Serve Humans\n\nHere are five ecosystem functions that serve humans:")
+
+    # Verify multi-line trailing references dump is cleaned
+    with_refs = (
+        "### Ecosystem Functions\n\nSummary.\n\n- **Item**: Desc.\n\n"
+        "References: [1] hees106.pdf, Page 7\n\n[2] hees101.pdf, Page 6\n[3] other.docx, Section 5"
+    )
+    cleaned = AnswerValidator.clean_meta_language(with_refs)
+    assert "References:" not in cleaned
+    assert "[2] hees101.pdf" not in cleaned
+    assert "[3] other.docx" not in cleaned
+
+
+
 
 
 
