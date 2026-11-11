@@ -3,6 +3,7 @@
 from typing import List, Optional
 from sentence_transformers import SentenceTransformer
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.core.exceptions import EmbeddingError
 from app.embeddings.base import BaseEmbeddingProvider
@@ -15,11 +16,11 @@ class SentenceTransformerEmbeddingProvider(BaseEmbeddingProvider):
         self,
         model_name: str = "all-MiniLM-L6-v2",
         batch_size: int = 32,
-        device: str = "cpu",
+        device: Optional[str] = None,
     ):
         self._model_name = model_name
         self._batch_size = batch_size
-        self._device = device
+        self._device = device or settings.get_compute_device()
         self._model: Optional[SentenceTransformer] = None
         self._dimension: Optional[int] = None
 

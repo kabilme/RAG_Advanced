@@ -34,6 +34,10 @@ def get_current_settings(ollama_client=Depends(get_ollama_client)):
         vision_model=settings.VISION_MODEL,
         enable_contextual_retrieval=settings.ENABLE_CONTEXTUAL_RETRIEVAL,
         contextual_mode=settings.CONTEXTUAL_MODE,
+        enable_acceleration=settings.ENABLE_ACCELERATION,
+        acceleration_device=settings.ACCELERATION_DEVICE,
+        acceleration_threads=settings.ACCELERATION_THREADS,
+        gpu_available=settings.is_gpu_available(),
         installed_models=installed,
     )
 
@@ -70,6 +74,10 @@ def update_system_settings(
             vision_model=settings.VISION_MODEL,
             enable_contextual_retrieval=settings.ENABLE_CONTEXTUAL_RETRIEVAL,
             contextual_mode=settings.CONTEXTUAL_MODE,
+            enable_acceleration=settings.ENABLE_ACCELERATION,
+            acceleration_device=settings.ACCELERATION_DEVICE,
+            acceleration_threads=settings.ACCELERATION_THREADS,
+            gpu_available=settings.is_gpu_available(),
             installed_models=installed,
         )
     except Exception as exc:

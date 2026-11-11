@@ -54,3 +54,35 @@ def test_chat_sessions_endpoint():
     resp = client.get("/chat/sessions")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def test_settings_acceleration_configuration():
+    # 1. GET /settings should return acceleration configuration
+    resp = client.get("/settings")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "enable_acceleration" in data
+    assert "acceleration_device" in data
+    assert "acceleration_threads" in data
+    assert "gpu_available" in data
+    # By default, CPU acceleration must not be automatically activated
+    assert data["enable_acceleration"] is False
+
+    # 2. POST /settings should allow manually activating acceleration with custom threads and device
+    update_payload = {
+        "enable_acceleration": True,
+        "acceleration_device": "cpu",
+        "acceleration_threads": 8,
+    }
+    update_resp = client.post("/settings", json=update_payload)
+    assert update_resp.status_code == 200
+    updated_data = update_resp.json()
+    assert updated_data["enable_acceleration"] is True
+    assert updated_data["acceleration_device"] == "cpu"
+    assert updated_data["acceleration_threads"] == 8
+
+    # 3. Disable acceleration again
+    disable_resp = client.post("/settings", json={"enable_acceleration": False})
+    assert disable_resp.status_code == 200
+    assert disable_resp.json()["enable_acceleration"] is False
+

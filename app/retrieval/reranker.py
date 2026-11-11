@@ -16,11 +16,11 @@ class CrossEncoderReranker:
         self,
         model_name: Optional[str] = None,
         enabled: Optional[bool] = None,
-        device: str = "cpu",
+        device: Optional[str] = None,
     ):
         self.model_name = model_name or settings.RERANKER_MODEL
         self.enabled = enabled if enabled is not None else settings.ENABLE_RERANKER
-        self.device = device
+        self.device = device or settings.get_compute_device()
         self._model: Optional[CrossEncoder] = None
 
     def _ensure_model(self) -> Optional[CrossEncoder]:

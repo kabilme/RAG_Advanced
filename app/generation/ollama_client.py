@@ -121,13 +121,28 @@ class OllamaClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Constructs CPU-optimized inference options for Ollama."""
-        return {
+        """Constructs inference options for Ollama respecting acceleration configuration."""
+        options: Dict[str, Any] = {
             "temperature": temperature if temperature is not None else self.temperature,
             "num_predict": max_tokens or self.max_tokens,
-            "num_thread": getattr(settings, "NUM_THREADS", 6),
             "num_ctx": getattr(settings, "NUM_CTX", 3072),
         }
+
+        if getattr(settings, "ENABLE_ACCELERATION", False):
+            device = getattr(settings, "ACCELERATION_DEVICE", "cpu").lower()
+            threads = getattr(settings, "ACCELERATION_THREADS", 4)
+            options["num_thread"] = max(1, threads)
+            if device in ("gpu", "cuda"):
+                options["num_gpu"] = 99
+            elif device == "cpu":
+                options["num_gpu"] = 0
+            elif device == "auto":
+                options["num_gpu"] = 99 if getattr(settings, "is_gpu_available", lambda: False)() else 0
+        else:
+            options["num_thread"] = 1
+            options["num_gpu"] = 0
+
+        return options
 
     def stream_generate(
         self,

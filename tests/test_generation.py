@@ -132,3 +132,31 @@ def test_rag_chain_streaming(test_chunks):
     assert done_event["type"] == "done"
     assert done_event["is_grounded"] is True
     assert len(done_event["citations"]) == 1
+
+
+def test_ollama_client_acceleration_options():
+    from app.core.config import settings
+
+    client = OllamaClient(base_url="http://localhost:11434", model_name="llama3.2")
+
+    # 1. When acceleration is disabled: must run unaccelerated with 1 thread and num_gpu=0
+    with patch.object(settings, "ENABLE_ACCELERATION", False):
+        opts = client._build_options()
+        assert opts["num_thread"] == 1
+        assert opts["num_gpu"] == 0
+
+    # 2. When acceleration is manually enabled for CPU with 8 threads
+    with patch.object(settings, "ENABLE_ACCELERATION", True), \
+         patch.object(settings, "ACCELERATION_DEVICE", "cpu"), \
+         patch.object(settings, "ACCELERATION_THREADS", 8):
+        opts = client._build_options()
+        assert opts["num_thread"] == 8
+        assert opts["num_gpu"] == 0
+
+    # 3. When acceleration is enabled for GPU
+    with patch.object(settings, "ENABLE_ACCELERATION", True), \
+         patch.object(settings, "ACCELERATION_DEVICE", "gpu"), \
+         patch.object(settings, "ACCELERATION_THREADS", 4):
+        opts = client._build_options()
+        assert opts["num_gpu"] == 99
+

@@ -28,9 +28,14 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "nomic-embed-text"
     TEMPERATURE: float = 0.1
     MAX_TOKENS: int = 1536
-    NUM_THREADS: int = 6
+    NUM_THREADS: int = 1
     NUM_CTX: int = 6144
     TIMEOUT_SECONDS: int = 120
+
+    # Hardware & Acceleration Settings (manual activation only)
+    ENABLE_ACCELERATION: bool = False
+    ACCELERATION_DEVICE: Literal["cpu", "gpu", "auto"] = "cpu"
+    ACCELERATION_THREADS: int = 4
 
     # Storage Paths
     VECTOR_DB_PATH: str = "./data/chroma_db"
@@ -87,6 +92,45 @@ class Settings(BaseSettings):
             if path_attr:
                 Path(path_attr).mkdir(parents=True, exist_ok=True)
 
+    def is_gpu_available(self) -> bool:
+        """Checks if a CUDA-compatible GPU is available."""
+        try:
+            import torch
+            return bool(torch.cuda.is_available())
+        except Exception:
+            return False
+
+    def get_compute_device(self) -> str:
+        """Determines the active compute device for local neural models."""
+        if not self.ENABLE_ACCELERATION:
+            return "cpu"
+
+        dev = self.ACCELERATION_DEVICE.lower()
+        if dev in ("gpu", "cuda"):
+            if self.is_gpu_available():
+                return "cuda"
+            return "cpu"
+        elif dev == "auto":
+            return "cuda" if self.is_gpu_available() else "cpu"
+        return "cpu"
+
+    def get_num_threads(self) -> int:
+        """Returns the number of threads to utilize based on acceleration state."""
+        if self.ENABLE_ACCELERATION:
+            return max(1, self.ACCELERATION_THREADS)
+        return 1
+
+    def apply_acceleration_settings(self) -> None:
+        """Applies thread limits and acceleration settings to runtime libraries."""
+        threads = self.get_num_threads()
+        try:
+            import torch
+            torch.set_num_threads(threads)
+        except Exception:
+            pass
+        os.environ["OMP_NUM_THREADS"] = str(threads)
+        os.environ["MKL_NUM_THREADS"] = str(threads)
+
     def update_settings(self, updates: dict) -> None:
         """Updates in-memory settings and persists them to the .env file."""
         for k, v in updates.items():
@@ -103,6 +147,10 @@ class Settings(BaseSettings):
                     else:
                         casted = v
                     setattr(self, attr, casted)
+
+        # Synchronize NUM_THREADS with acceleration state
+        self.NUM_THREADS = self.get_num_threads()
+        self.apply_acceleration_settings()
 
         env_path = Path(".env")
         lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
@@ -139,3 +187,4 @@ class Settings(BaseSettings):
 # Global singleton settings instance
 settings = Settings()
 settings.ensure_directories()
+settings.apply_acceleration_settings()

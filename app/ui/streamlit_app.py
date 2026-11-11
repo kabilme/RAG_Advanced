@@ -167,11 +167,15 @@ if menu == "Dashboard":
         """, unsafe_allow_html=True)
 
     st.subheader("System Status")
+    current_cfg = api_get("/settings") or {}
     status_col1, status_col2 = st.columns(2)
     with status_col1:
         st.write("**Vector Database:** ChromaDB (Cosine persistent storage)")
         st.write(f"**Relational Storage:** SQLite (`rag_app.db`)")
         st.write(f"**Embedding Dimension:** {health_data.get('embedding_dimension', 384) if health_data else 384}")
+        accel_active = current_cfg.get("enable_acceleration", False)
+        accel_desc = f"⚡ {str(current_cfg.get('acceleration_device', 'cpu')).upper()} ({current_cfg.get('acceleration_threads', 4)} threads)" if accel_active else "⏸️ Inactive (Standard mode)"
+        st.write(f"**Hardware Acceleration:** {accel_desc}")
     with status_col2:
         st.write(f"**Ollama Connectivity:** {'🟢 Active' if ollama_ok else '🔴 Inactive (Start Ollama)'}")
         st.write(f"**Model Verified:** {'🟢 Available' if health_data and health_data.get('model_available') else '🟡 Pending Pull'}")
@@ -550,9 +554,16 @@ elif menu == "Settings":
     st.header("⚙️ Application Configuration")
     st.caption("Configure local models, chunking strategies, retrieval thresholds, and inference parameters.")
 
-    st.info("⚡ **CPU Acceleration Active:** Configured for 6 threads on your 12th Gen Intel Core i5 with a bounded 3K context window to maximize speed without GPU.")
-
     current_settings = api_get("/settings") or {}
+    is_accel_on = bool(current_settings.get("enable_acceleration", False))
+    accel_dev = str(current_settings.get("acceleration_device", "cpu")).upper()
+    accel_th = int(current_settings.get("acceleration_threads", 4))
+    gpu_avail = bool(current_settings.get("gpu_available", False))
+
+    if is_accel_on:
+        st.success(f"⚡ **Hardware Acceleration:** Active on **{accel_dev}** ({accel_th} threads)")
+    else:
+        st.info("⏸️ **Hardware Acceleration:** Inactive (Standard mode). CPU/GPU acceleration is not automatically enabled. Use the settings below to manually activate it.")
     installed_models = current_settings.get("installed_models", [])
     configured_llm = current_settings.get("llm_model") or (health.get("configured_model") if health else "qwen2.5:7b")
 
@@ -675,6 +686,39 @@ elif menu == "Settings":
                 help="Recommended: 'moondream' (1.8B, fast CPU) or 'llava' (7B)."
             )
 
+        st.subheader("Hardware & Acceleration")
+        h_col1, h_col2, h_col3 = st.columns(3)
+        with h_col1:
+            enable_accel = st.checkbox(
+                "Manually Activate Acceleration",
+                value=is_accel_on,
+                help="When unchecked, the application runs in standard unaccelerated mode without automatic CPU/GPU acceleration.",
+            )
+        with h_col2:
+            dev_options = ["cpu", "gpu", "auto"]
+            cur_dev = str(current_settings.get("acceleration_device", "cpu")).lower()
+            selected_dev = st.selectbox(
+                "Acceleration Device",
+                options=dev_options,
+                index=dev_options.index(cur_dev) if cur_dev in dev_options else 0,
+                help="'cpu' enables multi-threaded CPU acceleration. 'gpu' offloads to CUDA GPU if available. 'auto' selects GPU when available.",
+            )
+            if gpu_avail:
+                st.caption("🟢 CUDA-capable GPU detected.")
+            else:
+                st.caption("ℹ️ No CUDA GPU detected (CPU acceleration recommended).")
+        with h_col3:
+            import os
+            max_cores = max(8, os.cpu_count() or 8)
+            num_threads = st.number_input(
+                "Acceleration Threads",
+                min_value=1,
+                max_value=max_cores,
+                value=min(max_cores, max(1, accel_th)),
+                step=1,
+                help="Number of worker threads enabled when acceleration is active (e.g. 4, 6, 8).",
+            )
+
         submitted = st.form_submit_button("💾 Save & Apply Settings", type="primary")
         if submitted:
             payload = {
@@ -692,6 +736,9 @@ elif menu == "Settings":
                 "vision_model": vision_model.strip() if vision_model.strip() else "moondream",
                 "enable_contextual_retrieval": bool(enable_contextual),
                 "contextual_mode": contextual_mode,
+                "enable_acceleration": bool(enable_accel),
+                "acceleration_device": selected_dev,
+                "acceleration_threads": int(num_threads),
             }
             save_resp = api_post("/settings", payload)
             if save_resp:

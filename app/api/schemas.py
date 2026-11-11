@@ -122,6 +122,9 @@ class SettingsUpdateRequest(BaseModel):
     vision_model: Optional[str] = None
     enable_contextual_retrieval: Optional[bool] = None
     contextual_mode: Optional[str] = None
+    enable_acceleration: Optional[bool] = None
+    acceleration_device: Optional[str] = None
+    acceleration_threads: Optional[int] = None
 
 
 class SettingsResponse(BaseModel):
@@ -142,4 +145,8 @@ class SettingsResponse(BaseModel):
     vision_model: str = "moondream"
     enable_contextual_retrieval: bool = True
     contextual_mode: str = "structural"
+    enable_acceleration: bool = False
+    acceleration_device: str = "cpu"
+    acceleration_threads: int = 4
+    gpu_available: bool = False
     installed_models: List[str] = Field(default_factory=list)
