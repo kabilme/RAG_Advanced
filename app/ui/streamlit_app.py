@@ -65,6 +65,42 @@ st.markdown("""
         padding: 12px;
         margin-top: 8px;
     }
+    /* Professional Document & Chat Message Typography */
+    .stChatMessage p {
+        line-height: 1.7 !important;
+        font-size: 15px !important;
+        margin-bottom: 0.85rem !important;
+        color: #e2e8f0;
+    }
+    .stChatMessage ul, .stChatMessage ol {
+        margin-top: 0.6rem !important;
+        margin-bottom: 1.1rem !important;
+        padding-left: 1.6rem !important;
+    }
+    .stChatMessage li {
+        margin-bottom: 0.65rem !important;
+        line-height: 1.65 !important;
+        color: #e2e8f0;
+    }
+    .stChatMessage strong {
+        color: #38bdf8 !important;
+        font-weight: 600 !important;
+    }
+    .stChatMessage h2, .stChatMessage h3, .stChatMessage h4 {
+        margin-top: 1.4rem !important;
+        margin-bottom: 0.6rem !important;
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.2px;
+    }
+    .stChatMessage blockquote {
+        border-left: 3px solid #38bdf8 !important;
+        padding-left: 1rem !important;
+        margin: 0.8rem 0 !important;
+        color: #94a3b8 !important;
+        background: rgba(56, 189, 248, 0.05);
+        border-radius: 0 6px 6px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -367,10 +403,10 @@ elif menu == "Grounded Chat":
             if isinstance(full_answer, list):
                 full_answer = "".join(str(item) for item in full_answer)
 
-            # If post-validation sanitized meta-language or normalized citations, immediately update the display
-            saved_answer = sources_container.get("final_answer") or full_answer
-            if sources_container.get("final_answer") and sources_container.get("final_answer").strip() != full_answer.strip():
-                answer_placeholder.markdown(saved_answer)
+            # Ensure the final displayed answer is polished, properly spaced, and formatted as a professional document
+            from app.generation.answer_validator import AnswerValidator
+            saved_answer = sources_container.get("final_answer") or AnswerValidator.format_professional_markdown(full_answer)
+            answer_placeholder.markdown(saved_answer)
 
             display_sources = sources_container.get("verified_citations") or sources_container.get("sources", [])
             if display_sources:

@@ -93,7 +93,14 @@ class AnswerValidator:
 
         s = text.strip()
 
-        # 1. Strip robotic opening preambles at the start
+        # 1. Strip trailing raw citation dumps like 'Citation Tags: hees101.pdf...' or 'References: [1] ...'
+        s = re.sub(
+            r"(?i)(?:\n+|\s+)(?:citation\s+tags?|references?|sources?)\s*:.*$",
+            "",
+            s,
+        ).strip()
+
+        # 2. Strip robotic opening preambles at the start
         s = re.sub(
             r"^(?:based\s+on|according\s+to)\s+the\s+(?:retrieved|provided)\s+(?:document\s+)?(?:context|information|excerpts|data)[,:]?\s*",
             "",
@@ -103,7 +110,16 @@ class AnswerValidator:
         if s and s[0].islower():
             s = s[0].upper() + s[1:]
 
-        # 2. 'As stated in Context Block X', 'According to Context Block X', 'In Context Block X', etc.
+        # 3. Strip embedded meta phrases like ', supported by the retrieved document context:'
+        s = re.sub(
+            r",?\s*(?:as\s+)?(?:supported\s+by|based\s+on|according\s+to)\s+the\s+(?:retrieved|provided)\s+(?:document\s+)?(?:context|information|excerpts)[,:]?",
+            ":",
+            s,
+            flags=re.IGNORECASE,
+        )
+        s = re.sub(r":\s*:", ":", s)
+
+        # 4. 'As stated in Context Block X', 'According to Context Block X', 'In Context Block X', etc.
         s = re.sub(
             r"\b(?:as\s+(?:stated|mentioned|noted|discussed|indicated|described)\s+in|according\s+to|in|per|from)\s+(?:context\s+block|document\s+excerpt|excerpt)\s+\d+[,:]?\s*",
             "",
@@ -111,7 +127,7 @@ class AnswerValidator:
             flags=re.IGNORECASE,
         )
 
-        # 3. 'Context Block X (also )?(emphasizes|states|notes|highlights|discusses|mentions|points out|explains)... stating/noting:'
+        # 5. 'Context Block X (also )?(emphasizes|states|notes|highlights|discusses|mentions|points out|explains)... stating/noting:'
         s = re.sub(
             r"\b(?:context\s+block|document\s+excerpt|excerpt)\s+\d+\s+(?:also\s+)?(?:states|notes|highlights|emphasizes|discusses|mentions|points\s+out|explains|indicates|shows)[^,\n:]*[,:]?\s*(?:stating|noting|explaining|indicating)?[,:]?\s*",
             "",
@@ -119,18 +135,18 @@ class AnswerValidator:
             flags=re.IGNORECASE,
         )
 
-        # 4. Any leftover 'Context Block \d+' or 'Document Excerpt \d+'
+        # 6. Any leftover 'Context Block \d+' or 'Document Excerpt \d+'
         s = re.sub(r"\b(?:context\s+block|document\s+excerpt)\s+\d+[,:]?\s*", "", s, flags=re.IGNORECASE)
 
-        # 5. Clean meta phrases in body text
+        # 7. Clean meta phrases in body text
         s = re.sub(r"\bthe\s+retrieved\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
         s = re.sub(r"\bretrieved\s+context\b", "available documentation", s, flags=re.IGNORECASE)
         s = re.sub(r"\bthe\s+provided\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
 
-        # 6. Unquote text following bullet colon if quotes were wrapped around the excerpt
+        # 8. Unquote text following bullet colon if quotes were wrapped around the excerpt
         s = re.sub(r'(:\s*)"([^"]+)"', r"\1\2", s)
 
-        # 7. Deduplicate repeating inline titles (e.g. '• Title: Title: text')
+        # 9. Deduplicate repeating inline titles (e.g. '• Title: Title: text')
         lines = []
         for line in s.split("\n"):
             m = re.match(r"^(\s*[-*•\d.]+\s*)([^:\n]+):\s*\2\s*:\s*(.*)$", line, re.IGNORECASE)
@@ -140,9 +156,72 @@ class AnswerValidator:
                 lines.append(line)
         s = "\n".join(lines)
 
-        # 8. Clean redundant inline spaces
+        # 10. Clean redundant inline spaces
         s = re.sub(r"[ \t]{2,}", " ", s)
         return s.strip()
+
+    @classmethod
+    def format_professional_markdown(cls, text: str) -> str:
+        """Formats raw or squashed LLM answers into a clean, executive document layout with
+        proper markdown lists, bold headings, and breathing room between sections.
+        """
+        if not text:
+            return ""
+
+        # Protect fenced code blocks from formatting modifications
+        parts = re.split(r"(```[\s\S]*?```)", text)
+        formatted_parts = []
+        for i, part in enumerate(parts):
+            if i % 2 == 1:
+                # Inside code block: preserve verbatim
+                formatted_parts.append(part)
+                continue
+
+            s = part
+
+            # 1. Convert unicode bullet symbols (•, ●, ▪, etc.) squashed inline or with whitespace into proper markdown list items
+            s = re.sub(r"(?:\s*[\r\n]+\s*|\s+)[•●▪]\s*", "\n\n- ", s)
+            # If starts with a bullet symbol
+            s = re.sub(r"^[•●▪]\s*", "- ", s)
+
+            # 2. Split inline numbered lists squashed into a single line:
+            # e.g. "Intro: 1. Item one. 2. Item two." -> "Intro:\n\n1. Item one.\n\n2. Item two."
+            s = re.sub(r"(:\s*|[\.\]\)]\s+)(\d+\.\s+)", r"\1\n\n\2", s)
+
+            # 3. Bold category/term heading before colon in list items:
+            # e.g. "- Renewable Resource Management: Humans can..." -> "- **Renewable Resource Management**: Humans can..."
+            def _bold_item_heading(match):
+                prefix = match.group(1)  # "- " or "1. "
+                heading = match.group(2).strip()
+                rest = match.group(3)
+                # Avoid re-bolding if already bolded
+                if heading.startswith("**") and heading.endswith("**"):
+                    return f"{prefix}{heading}: {rest}"
+                # Only bold concise title phrases (<= 8 words)
+                if len(heading.split()) <= 8:
+                    return f"{prefix}**{heading}**: {rest}"
+                return match.group(0)
+
+            s = re.sub(
+                r"(?m)^(\s*(?:-\s+|\d+\.\s+))([^:\n\*]+?)\s*:\s*([^\n]+)$",
+                _bold_item_heading,
+                s,
+            )
+
+            # 4. Ensure a blank line before the first list item if preceded by an introductory sentence
+            s = re.sub(r"([^\n])\n(- |\d+\. )", r"\1\n\n\2", s)
+
+            # 5. Ensure headers (### Section) have blank lines before and after
+            s = re.sub(r"([^\n])\n(#{1,4}\s+[^\n]+)", r"\1\n\n\2", s)
+            s = re.sub(r"(#{1,4}\s+[^\n]+)\n([^\n#])", r"\1\n\n\2", s)
+
+            # 6. Normalize paragraph spacing (at most 2 newlines)
+            s = re.sub(r"\n{3,}", "\n\n", s)
+
+            formatted_parts.append(s)
+
+        res = "".join(formatted_parts).strip()
+        return res
 
     @classmethod
     def validate_answer(
@@ -180,6 +259,8 @@ class AnswerValidator:
 
         # Clean meta-language, internal block references, robotic preambles, and duplicate headings
         answer = cls.clean_meta_language(answer)
+        # Format into clean, executive document structure with proper markdown hierarchy and spacing
+        answer = cls.format_professional_markdown(answer)
 
         # 3. Check numerical grounding
         combined_context = " ".join(c.text for c in chunks)

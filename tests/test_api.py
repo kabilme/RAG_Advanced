@@ -57,6 +57,10 @@ def test_chat_sessions_endpoint():
 
 
 def test_settings_acceleration_configuration():
+    from app.core.config import settings
+    # Ensure predictable baseline for unit test regardless of prior manual UI toggles in .env
+    settings.ENABLE_ACCELERATION = False
+
     # 1. GET /settings should return acceleration configuration
     resp = client.get("/settings")
     assert resp.status_code == 200

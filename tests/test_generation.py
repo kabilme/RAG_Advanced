@@ -213,3 +213,39 @@ def test_prompt_builder_avoids_context_block_labels(test_chunks):
     assert "Document Excerpt 1" in context
 
 
+def test_format_professional_markdown_reconstructs_squashed_bullets():
+    from app.generation.answer_validator import AnswerValidator
+
+    squashed_raw = (
+        "Here are five ecosystem functions that serve humans, supported by the retrieved document context: "
+        "• Renewable Resource Management: Humans can manage renewable resources. [Source: hees101.pdf, Page: 6] "
+        "• Fish Population Regulation: Traditional practices help maintain fish populations. [Source: hees101.pdf, Page: 6] "
+        "• Water Security: The management of water resources is crucial. [Source: hees101.pdf, Page: 6] "
+        "Citation Tags: hees101.pdf, Page 6 hees101.pdf, Page 6"
+    )
+
+    cleaned = AnswerValidator.clean_meta_language(squashed_raw)
+    formatted = AnswerValidator.format_professional_markdown(cleaned)
+
+    # 1. Trailing Citation Tags dump must be stripped
+    assert "Citation Tags:" not in formatted
+
+    # 2. Preambles must be cleaned
+    assert "supported by the retrieved document context" not in formatted
+    assert formatted.startswith("Here are five ecosystem functions that serve humans:")
+
+    # 3. Bullets must not be inline - they must start with standard markdown list markers on newlines
+    assert "•" not in formatted
+    assert "\n\n- **Renewable Resource Management**: Humans can manage renewable resources." in formatted
+    assert "\n\n- **Fish Population Regulation**: Traditional practices help maintain fish populations." in formatted
+    assert "\n\n- **Water Security**: The management of water resources is crucial." in formatted
+
+    # 4. Must render as distinct HTML list elements when parsed by markdown
+    import markdown
+    html = markdown.markdown(formatted)
+    assert "<ul>" in html
+    assert "<strong>Renewable Resource Management</strong>:" in html
+    assert "<strong>Fish Population Regulation</strong>:" in html
+
+
+
