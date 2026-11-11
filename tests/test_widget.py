@@ -16,6 +16,8 @@ def test_widget_script_endpoint():
     assert "RAGChatWidget" in text
     assert "attachShadow" in text
     assert "/chat/stream" in text
+    assert "<h3>$1</h3>" in text
+    assert "rag-msg-bubble h3" in text
 
 
 def test_static_mounted_script():

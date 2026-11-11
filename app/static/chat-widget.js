@@ -389,6 +389,17 @@
         }
 
         /* Formatted text inside assistant response */
+        .rag-msg-bubble h1,
+        .rag-msg-bubble h2,
+        .rag-msg-bubble h3,
+        .rag-msg-bubble h4 {
+          font-size: 14.5px;
+          font-weight: 700;
+          color: var(--rag-text-main);
+          margin: 6px 0 8px 0;
+          line-height: 1.35;
+        }
+
         .rag-msg-bubble p {
           margin-bottom: 8px;
         }
@@ -830,45 +841,91 @@
 
     formatMarkdown(text) {
       if (!text) return "";
-      let html = text
+
+      // Protect code blocks before escaping
+      const codeBlocks = [];
+      let s = text.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const idx = codeBlocks.length;
+        codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`);
+        return `__CODE_BLOCK_${idx}__`;
+      });
+
+      // Protect inline code
+      const inlineCodes = [];
+      s = s.replace(/`([^`]+)`/g, (match, code) => {
+        const idx = inlineCodes.length;
+        inlineCodes.push(`<code>${code}</code>`);
+        return `__INLINE_CODE_${idx}__`;
+      });
+
+      // Escape raw HTML entities
+      s = s
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-      // Code blocks ```code```
-      html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-        return `<pre><code>${code.trim()}</code></pre>`;
+      // Clean robotic phrases
+      s = s.replace(/\bthe\s+retriev(?:al|ed)\s+(?:document\s+)?context\s+(?:provides|indicates|shows|outlines)\s+/gi, 'the available documentation outlines ');
+      s = s.replace(/\bbased\s+on\s+the\s+retriev(?:al|ed)\s+(?:document\s+)?context[,:]?\s*/gi, 'According to the available documentation, ');
+      s = s.replace(/\bthe\s+retriev(?:al|ed)\s+(?:document\s+)?context\b/gi, 'the available documentation');
+      s = s.replace(/\bretriev(?:al|ed)\s+(?:document\s+)?context\b/gi, 'available documentation');
+
+      // Strip trailing raw reference dumps
+      s = s.replace(/(?:\n+|\s+)(?:citation\s+tags?|references?|sources?)\s*:[\s\S]*$/i, '').trim();
+
+      // Separate Title Case phrase squashed together with intro sentence on line 1
+      s = s.replace(/^(#{1,4}\s*)?(?:\*{2})?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)(?:\*{2})?\s*[:\-]?\s+((?:The|Here|According|Based|Below|These|This|Some|Several)\s+[a-z]+.*)$/gm, function (m, h, title, intro) {
+        if (title.split(/\s+/).length <= 10) {
+          return `### ${title}\n\n${intro}`;
+        }
+        return m;
       });
 
-      // Inline code `code`
-      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+      // Detach inline headings
+      s = s.replace(/([^#\n])\s*(#{2,4}\s+)/g, '$1\n\n$2');
+      s = s.replace(/^#\s*$/gm, '');
+
+      // Markdown Headings (###, ####, ##, #) -> convert to clean HTML headings without stray hashes
+      s = s.replace(/^####\s+(.*$)/gim, '<h4>$1</h4>');
+      s = s.replace(/^###\s+(.*$)/gim, '<h3>$1</h3>');
+      s = s.replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
+      s = s.replace(/^#\s+(.*$)/gim, '<h1>$1</h1>');
+      s = s.replace(/^#{1,4}\s*(.*$)/gim, '<h3>$1</h3>');
 
       // Bold **text**
-      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
       // Italic *text*
-      html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
       // Citation tags [Source: doc.pdf, Page: 2]
-      html = html.replace(
+      s = s.replace(
         /\[Source:\s*([^,;\]]+)(?:[,;]\s*(?:Pages?|p\.|pp\.|Slides?|Sheets?|Sections?):?\s*([^\]]+))?\]/gi,
         (match) => `<span class="rag-citation-tag">${match}</span>`
       );
 
       // Bullet points
-      html = html.replace(/^\s*[\-\*]\s+(.+)$/gm, "<li>$1</li>");
-      html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+      s = s.replace(/^\s*[\-\*]\s+(.+)$/gm, "<li>$1</li>");
+      s = s.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
 
       // Paragraphs
-      const paragraphs = html.split(/\n\s*\n/);
-      html = paragraphs
+      const paragraphs = s.split(/\n\s*\n/);
+      let html = paragraphs
         .map((p) => {
           p = p.trim();
           if (!p) return "";
-          if (p.startsWith("<pre>") || p.startsWith("<ul>") || p.startsWith("<ol>")) return p;
+          if (p.startsWith("<h") || p.startsWith("<pre>") || p.startsWith("<ul>") || p.startsWith("<ol>")) return p;
           return `<p>${p.replace(/\n/g, "<br/>")}</p>`;
         })
         .join("");
+
+      // Restore protected code blocks
+      inlineCodes.forEach((code, idx) => {
+        html = html.replace(`__INLINE_CODE_${idx}__`, code);
+      });
+      codeBlocks.forEach((code, idx) => {
+        html = html.replace(`__CODE_BLOCK_${idx}__`, code);
+      });
 
       return html;
     }
