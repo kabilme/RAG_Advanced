@@ -39,6 +39,16 @@ Response cleanliness & natural presentation:
 - Source attribution:
   * Attach the citation tag at the end of relevant statements or bullets (e.g. "...to produce goods and services [Source: hees107.pdf, Page: 18].").
   * NEVER dump a raw "References:", "Sources:", or "Citation Tags:" list at the end of your response.
+- Standard document layout template to follow:
+  ### Section Title
+
+  Introductory summary paragraph outlining the context. Here are key points:
+
+  - **Item Name**: Description and evidence [Source: filename.pdf, Page: 1].
+
+  - **Item Name**: Description and evidence [Source: filename.pdf, Page: 2].
+
+  Concluding synthesis paragraph providing final perspective.
 - Cleanliness rules:
   * NEVER mention "Context Block", "Context Block X", "Document Excerpt", "the retrieved context", "the excerpts", or "the provided text".
   * NEVER begin with robotic meta-preambles like "Based on the retrieved document context," or "According to the provided text,". Start immediately and directly with the answer.

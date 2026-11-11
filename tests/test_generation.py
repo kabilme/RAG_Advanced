@@ -376,6 +376,38 @@ def test_format_professional_markdown_fixes_inline_headings_and_squashed_lists()
     assert "- **Wind energy**: Energy from wind can be harnessed." in formatted
 
 
+def test_format_professional_markdown_unpacks_citation_delimited_inline_lists():
+    from app.generation.answer_validator import AnswerValidator
+
+    raw = (
+        "Cultural Practices Pointing to Mindfulness in Natural Resource Use "
+        "The available documentation highlights various cultural practices that promote mindfulness in the use of natural resources. "
+        "Here are some examples:\n\n"
+        "• Water Conservation Practices: In many indigenous traditions, water is considered sacred. [Source: hees101.pdf, Page: 3] "
+        "- Soil Conservation and Fertilization: Traditional farming practices promote holistic soil management. [Source: hees101.pdf, Page: 5] "
+        "- Waste Reduction and Recycling: In some communities, waste is minimized. [Source: hees107.pdf, Page: 18] "
+        "- Sustainable Agriculture: Some communities practice sustainable agriculture. [Source: hees107.pdf, Page: 18] "
+        "These cultural practices demonstrate a mindful approach to natural resources."
+    )
+
+    cleaned = AnswerValidator.clean_meta_language(raw)
+    formatted = AnswerValidator.format_professional_markdown(cleaned)
+
+    # Title must be separated from intro sentence
+    assert formatted.startswith("### Cultural Practices Pointing to Mindfulness in Natural Resource Use\n\n")
+    assert "The available documentation highlights various cultural practices" in formatted
+
+    # Every item must be detached into a distinct markdown bullet item
+    assert "\n\n- **Water Conservation Practices**: In many indigenous traditions, water is considered sacred. [Source: hees101.pdf, Page: 3]" in formatted
+    assert "\n\n- **Soil Conservation and Fertilization**: Traditional farming practices promote holistic soil management. [Source: hees101.pdf, Page: 5]" in formatted
+    assert "\n\n- **Waste Reduction and Recycling**: In some communities, waste is minimized. [Source: hees107.pdf, Page: 18]" in formatted
+    assert "\n\n- **Sustainable Agriculture**: Some communities practice sustainable agriculture. [Source: hees107.pdf, Page: 18]" in formatted
+
+    # Concluding paragraph must be detached with blank line
+    assert "\n\nThese cultural practices demonstrate a mindful approach to natural resources." in formatted
+
+
+
 
 
 

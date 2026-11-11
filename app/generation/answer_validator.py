@@ -210,50 +210,73 @@ class AnswerValidator:
             # 0b. Detach inline headings anywhere in the text: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
             s = re.sub(r"([^\n])\s*(#{2,4})\s*", r"\1\n\n\2 ", s)
 
-            # 0c. For any line starting with #{1,4}, separate the heading title from body text on the same line
+            # 0c. For any line, separate title from body text or intro sentence if squashed together:
+            # e.g. 'Cultural Practices Pointing to... The available documentation highlights...'
+            # e.g. '### Resources for Energy Resources for energy include:'
             lines = s.split("\n")
             new_lines = []
             small_words = {"and", "or", "of", "in", "for", "the", "a", "an", "to", "with", "on"}
             for line in lines:
-                m = re.match(r"^(#{1,4})\s+(.+)$", line)
-                if not m:
-                    new_lines.append(line)
+                line_str = line.strip()
+                if not line_str:
+                    new_lines.append("")
                     continue
-                level, content = m.group(1), m.group(2).strip()
-                words = content.split()
-                split_done = False
 
-                # A. Look for phrase repetition (Title Case followed by sentence case/same words)
-                for k in range(min(8, len(words) // 2), 1, -1):
-                    phrase1 = " ".join(words[:k]).lower()
-                    phrase2 = " ".join(words[k:2*k]).lower()
-                    if phrase1 == phrase2:
-                        title = " ".join(words[:k])
-                        rest = " ".join(words[k:])
+                # A. Check Title Case heading followed by intro sentence ('The [a-z]', 'Here [a-z]', etc.)
+                m_title = re.match(
+                    r"^(#{1,4}\s*)?([A-Z][a-zA-Z0-9\s/&-]{3,70}?)\s+((?:The|Here|According|Based|This|These|Some|Several|In|To)\s+[a-z]+.*)$",
+                    line_str,
+                )
+                if m_title:
+                    title = m_title.group(2).strip()
+                    intro = m_title.group(3).strip()
+                    if len(title.split()) <= 10:
                         new_lines.append(f"### {title}")
                         new_lines.append("")
-                        new_lines.append(rest)
-                        split_done = True
-                        break
+                        new_lines.append(intro)
+                        continue
 
-                if not split_done:
-                    # B. Look for Title Case words (<= 8) followed by sentence starting with lowercase or clause
-                    for k in range(min(8, len(words) - 2), 1, -1):
-                        w_title = words[:k]
-                        is_title = all(w[0].isupper() or w.lower() in small_words for w in w_title)
-                        if is_title and (words[k][0].isupper() or words[k].lower() in small_words):
-                            if any(words[k+j][0].islower() for j in range(min(4, len(words)-k))):
-                                title = " ".join(w_title)
-                                rest = " ".join(words[k:])
-                                new_lines.append(f"### {title}")
-                                new_lines.append("")
-                                new_lines.append(rest)
-                                split_done = True
-                                break
+                # B. Check for heading repetition: e.g. '### Resources for Energy Resources for energy include:'
+                m = re.match(r"^(#{1,4})\s+(.+)$", line)
+                if m:
+                    level, content = m.group(1), m.group(2).strip()
+                    words = content.split()
+                    split_done = False
 
-                if not split_done:
-                    # Normalize heading level to ###
-                    new_lines.append(f"### {content}")
+                    # Phrase repetition (Title Case followed by sentence case/same words)
+                    for k in range(min(8, len(words) // 2), 1, -1):
+                        phrase1 = " ".join(words[:k]).lower()
+                        phrase2 = " ".join(words[k:2*k]).lower()
+                        if phrase1 == phrase2:
+                            title = " ".join(words[:k])
+                            rest = " ".join(words[k:])
+                            new_lines.append(f"### {title}")
+                            new_lines.append("")
+                            new_lines.append(rest)
+                            split_done = True
+                            break
+
+                    if not split_done:
+                        # Title Case words (<= 8) followed by sentence starting with lowercase or clause
+                        for k in range(min(8, len(words) - 2), 1, -1):
+                            w_title = words[:k]
+                            is_title = all(w[0].isupper() or w.lower() in small_words for w in w_title)
+                            if is_title and (words[k][0].isupper() or words[k].lower() in small_words):
+                                if any(words[k+j][0].islower() for j in range(min(4, len(words)-k))):
+                                    title = " ".join(w_title)
+                                    rest = " ".join(words[k:])
+                                    new_lines.append(f"### {title}")
+                                    new_lines.append("")
+                                    new_lines.append(rest)
+                                    split_done = True
+                                    break
+
+                    if not split_done:
+                        # Normalize heading level to ###
+                        new_lines.append(f"### {content}")
+                    continue
+
+                new_lines.append(line)
 
             s = "\n".join(new_lines)
 
@@ -274,7 +297,27 @@ class AnswerValidator:
             # 1. Detach intro phrase from preceding sentence: e.g. '...services. Ecosystem functions include:'
             s = re.sub(r"(\.\s+)([A-Z][a-zA-Z0-9\s]{2,40}\s+(?:include|are|is|the following):)", r"\1\n\n\2", s)
 
-            # 1b. Fix inline first bullet stuck to colon introductory phrase:
+            # 1b. Detach inline bullets following a citation:
+            # e.g. '[Source: ...] - Next Item:' -> '[Source: ...]\n\n- Next Item:'
+            s = re.sub(r"(\[[^\]]+\])\s*-\s*", r"\1\n\n- ", s)
+            s = re.sub(r"(\[[^\]]+\])\s*[•●▪]\s*", r"\1\n\n- ", s)
+
+            # Detach concluding sentence or unbulleted item after citation:
+            def _split_after_citation(m):
+                cite = m.group(1)
+                rest = m.group(2).strip()
+                if re.match(r"^[A-Z][a-zA-Z0-9\s]{1,40}:", rest):
+                    return f"{cite}\n\n- {rest}"
+                else:
+                    return f"{cite}\n\n{rest}"
+
+            s = re.sub(r"(\[[^\]]+\])\s+([A-Z][a-zA-Z0-9].*)$", _split_after_citation, s, flags=re.MULTILINE)
+
+            # 1c. Detach inline bullets following a period:
+            s = re.sub(r"(\.)\s*-\s*([A-Z])", r"\1\n\n- \2", s)
+            s = re.sub(r"(\.)\s*[•●▪]\s*([A-Z])", r"\1\n\n- \2", s)
+
+            # 1d. Fix inline first bullet stuck to colon introductory phrase:
             # e.g. "include: - Filtering water: forests..." or "Here are five examples: Filtering Water: ecosystems..."
             s = re.sub(r"(:\s*)-\s*", r":\n\n- ", s)
             s = re.sub(
