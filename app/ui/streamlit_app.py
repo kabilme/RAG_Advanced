@@ -48,58 +48,67 @@ st.markdown("""
     .status-online { background-color: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
     .status-offline { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
     .citation-tag {
-        background-color: rgba(56, 189, 248, 0.15);
-        color: #38bdf8;
-        border: 1px solid rgba(56, 189, 248, 0.4);
+        background-color: rgba(2, 132, 199, 0.12);
+        color: #0284c7;
+        border: 1px solid rgba(2, 132, 199, 0.35);
         border-radius: 6px;
         padding: 2px 8px;
         font-size: 12px;
         font-family: monospace;
+        font-weight: 600;
         display: inline-block;
         margin: 2px 0;
     }
     .source-box {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(56, 189, 248, 0.2);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         border-radius: 8px;
         padding: 12px;
         margin-top: 8px;
+        color: var(--text-color);
     }
-    /* Professional Document & Chat Message Typography */
+    /* Professional Document & Chat Message Typography - High Contrast & Theme Adaptive */
+    .stChatMessage {
+        color: var(--text-color) !important;
+    }
+    .stChatMessage p, .stChatMessage span, .stChatMessage div {
+        color: var(--text-color);
+    }
     .stChatMessage p {
-        line-height: 1.7 !important;
-        font-size: 15px !important;
-        margin-bottom: 0.85rem !important;
-        color: #e2e8f0;
+        line-height: 1.75 !important;
+        font-size: 15.5px !important;
+        margin-bottom: 0.9rem !important;
+        color: var(--text-color) !important;
     }
     .stChatMessage ul, .stChatMessage ol {
-        margin-top: 0.6rem !important;
-        margin-bottom: 1.1rem !important;
-        padding-left: 1.6rem !important;
+        margin-top: 0.75rem !important;
+        margin-bottom: 1.25rem !important;
+        padding-left: 1.75rem !important;
     }
     .stChatMessage li {
-        margin-bottom: 0.65rem !important;
-        line-height: 1.65 !important;
-        color: #e2e8f0;
+        margin-bottom: 0.75rem !important;
+        line-height: 1.7 !important;
+        font-size: 15px !important;
+        color: var(--text-color) !important;
     }
     .stChatMessage strong {
-        color: #38bdf8 !important;
-        font-weight: 600 !important;
-    }
-    .stChatMessage h2, .stChatMessage h3, .stChatMessage h4 {
-        margin-top: 1.4rem !important;
-        margin-bottom: 0.6rem !important;
-        color: #f8fafc !important;
+        color: var(--text-color) !important;
         font-weight: 700 !important;
-        letter-spacing: -0.2px;
+    }
+    .stChatMessage h1, .stChatMessage h2, .stChatMessage h3, .stChatMessage h4 {
+        margin-top: 1.5rem !important;
+        margin-bottom: 0.75rem !important;
+        color: var(--text-color) !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.3px !important;
     }
     .stChatMessage blockquote {
-        border-left: 3px solid #38bdf8 !important;
-        padding-left: 1rem !important;
-        margin: 0.8rem 0 !important;
-        color: #94a3b8 !important;
-        background: rgba(56, 189, 248, 0.05);
-        border-radius: 0 6px 6px 0;
+        border-left: 4px solid #0284c7 !important;
+        padding: 0.6rem 1rem !important;
+        margin: 1rem 0 !important;
+        color: var(--text-color) !important;
+        background: var(--secondary-background-color) !important;
+        border-radius: 0 8px 8px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -331,7 +340,7 @@ elif menu == "Grounded Chat":
                         st.markdown(f"""
                         <div class="source-box">
                             <span class="citation-tag">{src.get('raw_citation', src.get('citation', 'Source'))}</span>
-                            <p style="margin-top: 6px; font-size: 13px; color: #cbd5e1;">{src.get('snippet', '')}</p>
+                            <p style="margin-top: 6px; font-size: 13px; color: var(--text-color); opacity: 0.88; line-height: 1.5;">{src.get('snippet', '')}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -418,7 +427,9 @@ elif menu == "Grounded Chat":
 
             # Ensure the final displayed answer is polished, properly spaced, and formatted as a professional document
             from app.generation.answer_validator import AnswerValidator
-            saved_answer = sources_container.get("final_answer") or AnswerValidator.format_professional_markdown(full_answer)
+            raw_target = sources_container.get("final_answer") or full_answer
+            cleaned_target = AnswerValidator.clean_meta_language(raw_target)
+            saved_answer = AnswerValidator.format_professional_markdown(cleaned_target)
             answer_placeholder.markdown(saved_answer)
 
             display_sources = sources_container.get("verified_citations") or sources_container.get("sources", [])
@@ -426,11 +437,11 @@ elif menu == "Grounded Chat":
                 with st.expander(f"📚 Verified Sources ({len(display_sources)})"):
                     for sc in display_sources:
                         tag = sc.get('raw_citation') or sc.get('citation') or f"[Source: {sc.get('filename', 'Document')}]"
-                        score_info = f" <span style='font-size: 12px; color: #94a3b8;'>(Relevance: {sc.get('similarity_score', 0):.2f})</span>" if sc.get('similarity_score') else ""
+                        score_info = f" <span style='font-size: 12px; color: var(--text-color); opacity: 0.7;'>(Relevance: {sc.get('similarity_score', 0):.2f})</span>" if sc.get('similarity_score') else ""
                         st.markdown(f"""
                         <div class="source-box">
                             <span class="citation-tag">{tag}</span>{score_info}
-                            <p style="margin-top: 6px; font-size: 13px; color: #cbd5e1;">{sc.get('snippet', '')}</p>
+                            <p style="margin-top: 6px; font-size: 13px; color: var(--text-color); opacity: 0.88; line-height: 1.5;">{sc.get('snippet', '')}</p>
                         </div>
                         """, unsafe_allow_html=True)
 

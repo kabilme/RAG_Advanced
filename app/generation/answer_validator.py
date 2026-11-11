@@ -102,7 +102,7 @@ class AnswerValidator:
 
         # 2. Strip robotic opening preambles at the start
         s = re.sub(
-            r"^(?:based\s+on|according\s+to)\s+the\s+(?:retrieved|provided)\s+(?:document\s+)?(?:context|information|excerpts|data)[,:]?\s*",
+            r"^(?:based\s+on|according\s+to|per)\s+(?:the\s+)?(?:retrieved|provided|available)\s+(?:document\s+)?(?:context|information|excerpts|data)[,:]?\s*",
             "",
             s,
             flags=re.IGNORECASE,
@@ -138,10 +138,32 @@ class AnswerValidator:
         # 6. Any leftover 'Context Block \d+' or 'Document Excerpt \d+'
         s = re.sub(r"\b(?:context\s+block|document\s+excerpt)\s+\d+[,:]?\s*", "", s, flags=re.IGNORECASE)
 
-        # 7. Clean meta phrases in body text
-        s = re.sub(r"\bthe\s+retrieved\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
-        s = re.sub(r"\bretrieved\s+context\b", "available documentation", s, flags=re.IGNORECASE)
-        s = re.sub(r"\bthe\s+provided\s+context\b", "the available documentation", s, flags=re.IGNORECASE)
+        # 7. Clean meta phrases in body text and convert to natural documentation phrasing
+        s = re.sub(
+            r"(?i)\bthe\s+retriev(?:al|ed)\s+(?:document\s+)?context\s+(?:provides|indicates|shows|outlines)\s+",
+            "the available documentation outlines ",
+            s,
+        )
+        s = re.sub(
+            r"(?i)\bbased\s+on\s+the\s+retriev(?:al|ed)\s+(?:document\s+)?context[,:]?\s*",
+            "According to the available documentation, ",
+            s,
+        )
+        s = re.sub(
+            r"(?i)\bthe\s+retriev(?:al|ed)\s+(?:document\s+)?context\b",
+            "the available documentation",
+            s,
+        )
+        s = re.sub(
+            r"(?i)\bretriev(?:al|ed)\s+(?:document\s+)?context\b",
+            "available documentation",
+            s,
+        )
+        s = re.sub(
+            r"(?i)\bthe\s+provided\s+context\b",
+            "the available documentation",
+            s,
+        )
 
         # 8. Unquote text following bullet colon if quotes were wrapped around the excerpt
         s = re.sub(r'(:\s*)"([^"]+)"', r"\1\2", s)
@@ -156,8 +178,11 @@ class AnswerValidator:
                 lines.append(line)
         s = "\n".join(lines)
 
-        # 10. Clean redundant inline spaces
+        # 10. Clean redundant inline spaces and leading commas
         s = re.sub(r"[ \t]{2,}", " ", s)
+        s = re.sub(r"^[,\s]+", "", s)
+        if s and s[0].islower():
+            s = s[0].upper() + s[1:]
         return s.strip()
 
     @classmethod
@@ -179,16 +204,38 @@ class AnswerValidator:
 
             s = part
 
-            # 1. Convert unicode bullet symbols (•, ●, ▪, etc.) squashed inline or with whitespace into proper markdown list items
+            # 0. Elevate a standalone unpunctuated title line (<= 8 words) followed by text to a markdown heading:
+            # e.g. "Ecosystem Functions Serving Humans\nThe available documentation..." -> "### Ecosystem Functions Serving Humans\n\nThe available..."
+            first_line_match = re.match(r"^([A-Z][a-zA-Z0-9\s]{2,60})\n+([a-zA-Z0-9])", s)
+            if first_line_match:
+                title = first_line_match.group(1).strip()
+                rest = s[first_line_match.start(2):]
+                if rest and rest[0].islower():
+                    rest = rest[0].upper() + rest[1:]
+                if not title.endswith((".", ":", ";", ",", "?", "!")) and len(title.split()) <= 8 and not title.startswith("#"):
+                    s = f"### {title}\n\n" + rest
+
+            # 0b. If text starts with bold title like **Title**\nText, promote to ### Title\n\nText
+            s = re.sub(r"^\*{2}([^\n\*]+)\*{2}\n+([^\n])", r"### \1\n\n\2", s)
+
+            # 1. Fix inline first bullet stuck to colon introductory phrase:
+            # e.g. "Here are five examples: Filtering Water: ecosystems..." -> "Here are five examples:\n\n- Filtering Water: ecosystems..."
+            s = re.sub(
+                r"(:\s*)(\*{0,2}[A-Z][a-zA-Z0-9\s]{2,40}\*{0,2}\s*[:\-]\s*[a-zA-Z])",
+                r":\n\n- \2",
+                s,
+            )
+
+            # 2. Convert unicode bullet symbols (•, ●, ▪, etc.) squashed inline or with whitespace into proper markdown list items
             s = re.sub(r"(?:\s*[\r\n]+\s*|\s+)[•●▪]\s*", "\n\n- ", s)
             # If starts with a bullet symbol
             s = re.sub(r"^[•●▪]\s*", "- ", s)
 
-            # 2. Split inline numbered lists squashed into a single line:
+            # 3. Split inline numbered lists squashed into a single line:
             # e.g. "Intro: 1. Item one. 2. Item two." -> "Intro:\n\n1. Item one.\n\n2. Item two."
             s = re.sub(r"(:\s*|[\.\]\)]\s+)(\d+\.\s+)", r"\1\n\n\2", s)
 
-            # 3. Bold category/term heading before colon in list items:
+            # 4. Bold category/term heading before colon in list items:
             # e.g. "- Renewable Resource Management: Humans can..." -> "- **Renewable Resource Management**: Humans can..."
             def _bold_item_heading(match):
                 prefix = match.group(1)  # "- " or "1. "
@@ -208,14 +255,33 @@ class AnswerValidator:
                 s,
             )
 
-            # 4. Ensure a blank line before the first list item if preceded by an introductory sentence
+            # 5. Ensure a blank line before the first list item if preceded by an introductory sentence
             s = re.sub(r"([^\n])\n(- |\d+\. )", r"\1\n\n\2", s)
 
-            # 5. Ensure headers (### Section) have blank lines before and after
+            # 6. Ensure headers (### Section) have blank lines before and after
             s = re.sub(r"([^\n])\n(#{1,4}\s+[^\n]+)", r"\1\n\n\2", s)
             s = re.sub(r"(#{1,4}\s+[^\n]+)\n([^\n#])", r"\1\n\n\2", s)
 
-            # 6. Normalize paragraph spacing (at most 2 newlines)
+            # 7. Ensure concluding paragraphs after a list have a blank line
+            lines = s.split("\n")
+            processed = []
+            in_list = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith(("- ", "* ", "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")):
+                    in_list = True
+                    processed.append(line)
+                elif in_list and stripped and not stripped.startswith(("#", "-", "*")):
+                    in_list = False
+                    processed.append("")
+                    processed.append(line)
+                else:
+                    if not stripped:
+                        in_list = False
+                    processed.append(line)
+            s = "\n".join(processed)
+
+            # 8. Normalize paragraph spacing (at most 2 newlines)
             s = re.sub(r"\n{3,}", "\n\n", s)
 
             formatted_parts.append(s)

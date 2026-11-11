@@ -308,4 +308,36 @@ def test_format_professional_markdown_reconstructs_squashed_bullets():
     assert "<strong>Fish Population Regulation</strong>:" in html
 
 
+def test_format_professional_markdown_aligns_first_item_and_promotes_title():
+    from app.generation.answer_validator import AnswerValidator
+
+    raw = (
+        "Ecosystem Functions Serving Humans\n"
+        "The retrieval document context provides several ecosystem functions that serve humans. "
+        "Here are five examples: Filtering Water: ecosystems like forests naturally filter water. [Source: hees101.pdf, Page: 7]\n"
+        "• Preventing Soil Erosion: Forests also prevent soil erosion. [Source: hees101.pdf, Page: 7]\n"
+        "These ecosystem functions are vital for human survival."
+    )
+
+    cleaned = AnswerValidator.clean_meta_language(raw)
+    formatted = AnswerValidator.format_professional_markdown(cleaned)
+
+    # Title must be elevated to header ###
+    assert formatted.startswith("### Ecosystem Functions Serving Humans\n\n")
+
+    # Meta language cleaned
+    assert "retrieval document context provides" not in formatted
+    assert "The available documentation outlines" in formatted
+
+    # First item must be detached into its own bullet with bold heading
+    assert "\n\n- **Filtering Water**: ecosystems like forests naturally filter water." in formatted
+
+    # Second item must be standard bullet
+    assert "\n\n- **Preventing Soil Erosion**: Forests also prevent soil erosion." in formatted
+
+    # Concluding paragraph must have a blank line before it
+    assert "\n\nThese ecosystem functions are vital for human survival." in formatted
+
+
+
 

@@ -31,9 +31,11 @@ Response cleanliness & natural presentation:
   * Open with a direct, informative summary paragraph or introductory sentence.
   * When presenting multiple points, items, or functions, ALWAYS format them as a structured Markdown bullet list using `- **Item Name**: Description...`.
   * Put EVERY list item on its own separate line preceded by a blank line. NEVER cram or combine bullet points into a single continuous paragraph or line.
+  * CRITICAL: When introducing a list (e.g. "Here are five examples:"), ALWAYS place the first item on a NEW line starting with `- **Item**: `. NEVER attach the first item directly to the colon or introductory sentence.
+  * CRITICAL: If providing a title, format it as a markdown header (e.g. `### Ecosystem Functions`) on its own line with a blank line after it.
   * Separate paragraphs, sections, and lists with a blank line (double newline) to ensure clean visual spacing and breathing room.
   * Use bold markdown (`**Heading**`) for key terms, categories, and concept headings to create clear visual anchor points.
-  * For multi-part or complex answers, organize into distinct sections using Markdown headers (e.g. `### Section Title`).
+  * NEVER use unicode bullet symbols (like •, ●, ▪); always use standard Markdown `- **Item**: `.
 - Source attribution:
   * Attach the citation tag at the end of relevant statements or bullets (e.g. "...to produce goods and services [Source: hees107.pdf, Page: 18].").
   * NEVER dump a raw "References:", "Sources:", or "Citation Tags:" list at the end of your response.
