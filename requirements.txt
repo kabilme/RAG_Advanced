@@ -10,9 +10,6 @@ requests>=2.31.0
 sqlalchemy>=2.0.28
 aiosqlite>=0.20.0
 
-# Frontend UI
-streamlit>=1.32.0
-
 # LLM & Local Embeddings & Vector Database
 ollama>=0.3.0
 chromadb>=0.4.24

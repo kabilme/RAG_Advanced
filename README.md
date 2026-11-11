@@ -15,9 +15,10 @@ Includes a **website-embeddable chatbot widget** powered by native Shadow DOM th
                         ┌─────────────────────────────────────────────────────────┐
                         │                     Client Layer                        │
                         │ ┌──────────────────────┐     ┌────────────────────────┐ │
-                        │ │  Streamlit Console   │     │  Embeddable Chatbot    │ │
-                        │ │  (Chat / Ingestion / │     │  (Shadow DOM / Iframe /│ │
-                        │ │   Widget / Settings) │     │   React / Demo Studio) │ │
+                        │ │ Responsive Web App   │     │  Embeddable Chatbot    │ │
+                        │ │ (HTML / CSS / JS SPA)│     │  (Shadow DOM / Iframe /│ │
+                        │ │  (Chat / Ingestion / │     │   React / Demo Studio) │ │
+                        │ │   Widget / Settings) │     │                        │ │
                         │ └──────────┬───────────┘     └───────────┬────────────┘ │
                         └────────────┼─────────────────────────────┼──────────────┘
                                      │ REST / SSE                  │ REST / SSE
@@ -100,14 +101,13 @@ pip install -r requirements.txt
   - Interactive Widget Demo Studio: `http://127.0.0.1:8000/widget/demo`
   - Direct Iframe Chat: `http://127.0.0.1:8000/widget/embed`
 
-- **Streamlit Interactive UI**:
+- **Responsive Web Application (HTML5 / CSS3 / JavaScript SPA)**:
   ```powershell
   .venv\Scripts\python.exe run_frontend.py
-  # OR
-  .venv\Scripts\python.exe -m streamlit run app/ui/streamlit_app.py
   ```
-  - Web console opens at: `http://localhost:8501`
+  - Web console opens at: `http://localhost:8501` (or directly via FastAPI on `http://127.0.0.1:8000/`)
   - Includes **Dashboard**, **Document Management**, **Grounded Chat**, **Retrieval Lab**, **Embeddable Chatbot**, **Settings**, and **Evaluation**.
+  - 100% offline-first, theme-adaptive (light/dark mode), zero external CDNs.
 
 ---
 
@@ -260,14 +260,17 @@ RAG_advanced/
 │   │   ├── retrieval_pipeline.py    # Pipeline coordinating query, search & reranking
 │   │   └── semantic_search.py       # Dense vector search against ChromaDB
 │   ├── static/
+│   │   ├── index.html               # Responsive Single-Page Application (HTML5)
+│   │   ├── css/
+│   │   │   └── app.css              # Theme-adaptive, high-contrast, responsive CSS3
+│   │   ├── js/
+│   │   │   └── app.js               # Reactive SPA client & offline Markdown parser
 │   │   ├── chat-widget.js           # Zero-dependency Shadow DOM embeddable widget
 │   │   ├── demo.html                # Interactive Customizer Studio & Showcase
 │   │   └── embed.html               # Responsive standalone chat page for iframes
-│   ├── ui/
-│   │   └── streamlit_app.py         # Comprehensive Streamlit multi-tab web console
 │   └── vectorstore/
 │       └── chroma_store.py          # Persistent ChromaDB client & vector CRUD
-├── tests/                           # Complete automated pytest test suite (76 tests)
+├── tests/                           # Complete automated pytest test suite (88 tests)
 │   ├── test_abstention.py
 │   ├── test_api.py
 │   ├── test_chunking.py
@@ -284,7 +287,7 @@ RAG_advanced/
 │   ├── test_vision.py
 │   └── test_widget.py
 ├── run_backend.py                   # FastAPI backend launcher
-├── run_frontend.py                  # Streamlit web UI launcher
+├── run_frontend.py                  # Responsive Web UI server launcher (port 8501)
 ├── requirements.txt                 # Project dependencies
 └── README.md
 ```

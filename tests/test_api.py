@@ -90,3 +90,30 @@ def test_settings_acceleration_configuration():
     assert disable_resp.status_code == 200
     assert disable_resp.json()["enable_acceleration"] is False
 
+
+def test_responsive_web_ui_endpoints():
+    """Verify that the responsive HTML, CSS, and JS frontend is served correctly."""
+    # 1. GET /ui delivers the HTML Single-Page Application
+    ui_resp = client.get("/ui")
+    assert ui_resp.status_code == 200
+    assert "text/html" in ui_resp.headers["content-type"]
+    assert "Local RAG" in ui_resp.text
+    assert "app.css" in ui_resp.text
+    assert "app.js" in ui_resp.text
+
+    # 2. Browser request to GET / with Accept: text/html delivers the web UI
+    browser_resp = client.get("/", headers={"Accept": "text/html,application/xhtml+xml"})
+    assert browser_resp.status_code == 200
+    assert "text/html" in browser_resp.headers["content-type"]
+    assert "Local RAG" in browser_resp.text
+
+    # 3. Static assets are served cleanly
+    css_resp = client.get("/static/css/app.css")
+    assert css_resp.status_code == 200
+    assert "text/css" in css_resp.headers["content-type"]
+
+    js_resp = client.get("/static/js/app.js")
+    assert js_resp.status_code == 200
+    assert "javascript" in js_resp.headers["content-type"]
+
+

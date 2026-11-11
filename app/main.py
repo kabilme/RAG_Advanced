@@ -2,8 +2,9 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
@@ -61,11 +62,25 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 @app.get("/")
-def root():
+def root(request: Request):
+    accept = request.headers.get("accept", "")
+    index_file = static_dir / "index.html"
+    if "text/html" in accept and "application/json" not in accept and index_file.exists():
+        return FileResponse(str(index_file))
     return {
         "message": "Local Advanced RAG System API is running.",
         "docs_url": "/docs",
         "health_url": "/health",
+        "ui_url": "/ui",
         "widget_studio_url": "/widget/demo",
         "widget_embed_url": "/widget/embed",
     }
+
+
+@app.get("/ui", include_in_schema=False)
+@app.get("/app", include_in_schema=False)
+def web_ui():
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    return JSONResponse({"error": "Web application index.html not found."}, status_code=404)
