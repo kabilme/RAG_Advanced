@@ -882,15 +882,18 @@
       });
 
       // Detach inline headings
-      s = s.replace(/([^#\n])\s*(#{2,4}\s+)/g, '$1\n\n$2');
+      s = s.replace(/([^#\n])\s*(#{1,4})\s*/g, '$1\n\n$2 ');
       s = s.replace(/^#\s*$/gm, '');
 
       // Markdown Headings (###, ####, ##, #) -> convert to clean HTML headings without stray hashes
-      s = s.replace(/^####\s+(.*$)/gim, '<h4>$1</h4>');
-      s = s.replace(/^###\s+(.*$)/gim, '<h3>$1</h3>');
-      s = s.replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
-      s = s.replace(/^#\s+(.*$)/gim, '<h1>$1</h1>');
-      s = s.replace(/^#{1,4}\s*(.*$)/gim, '<h3>$1</h3>');
+      s = s.replace(/^#{4,}\s*(.+)$/gim, '<h4>$1</h4>');
+      s = s.replace(/^#{3}\s*(.+)$/gim, '<h3>$1</h3>');
+      s = s.replace(/^#{2}\s*(.+)$/gim, '<h2>$1</h2>');
+      s = s.replace(/^#{1}\s*(.+)$/gim, '<h3>$1</h3>');
+
+      // Cleanup any leftover raw hashes anywhere in text: e.g. inline '### Side Heading'
+      s = s.replace(/#{2,4}\s*([^#\n<]+)/g, '<strong>$1</strong>');
+      s = s.replace(/#{1,4}/g, '');
 
       // Bold **text**
       s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");

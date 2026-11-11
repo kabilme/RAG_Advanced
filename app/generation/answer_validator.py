@@ -209,7 +209,7 @@ class AnswerValidator:
             s = re.sub(r"^([^#\n]{2,80}?)\s*(#{2,4}\s+)", r"\2", s)
 
             # 0b. Detach inline headings anywhere in the text: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
-            s = re.sub(r"([^#\n])\s*(#{2,4}\s+)", r"\1\n\n\2", s)
+            s = re.sub(r"([^#\n])\s*(#{1,4})\s*", r"\1\n\n\2 ", s)
             # Remove any stray isolated single hash on its own line
             s = re.sub(r"^#\s*$", "", s, flags=re.MULTILINE)
 

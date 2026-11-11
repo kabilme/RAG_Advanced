@@ -26,7 +26,11 @@ class FrontendHandler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
         """Normalize URL paths so that /static/... cleanly maps to STATIC_DIR/..."""
         url_path = path.split("?", 1)[0].split("#", 1)[0]
-        if url_path.startswith("/static/"):
+        if url_path == "/widget/embed":
+            return str(STATIC_DIR / "embed.html")
+        elif url_path == "/widget/chat-widget.js":
+            return str(STATIC_DIR / "chat-widget.js")
+        elif url_path.startswith("/static/"):
             url_path = url_path[len("/static"):]
         elif url_path == "/static":
             url_path = "/"

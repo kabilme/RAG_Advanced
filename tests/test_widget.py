@@ -34,6 +34,8 @@ def test_widget_embed_endpoint():
     assert "text/html" in resp.headers["content-type"]
     assert "rag-container" in resp.text
     assert "chatInput" in resp.text
+    assert "<h3>$1</h3>" in resp.text
+    assert "no-cache" in resp.headers["cache-control"]
 
 
 def test_static_mounted_embed():

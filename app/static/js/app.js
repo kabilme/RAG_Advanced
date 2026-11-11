@@ -113,7 +113,7 @@
     });
 
     // 3. Detach inline headings: e.g. 'retaining soil moisture. #### Resources Essential for Life...'
-    s = s.replace(/([^#\n])\s*(#{2,4}\s+)/g, '$1\n\n$2');
+    s = s.replace(/([^#\n])\s*(#{1,4})\s*/g, '$1\n\n$2 ');
 
     // 3b. Remove any stray isolated single hash on its own line
     s = s.replace(/^#\s*$/gm, '');
@@ -137,10 +137,14 @@
     s = s.replace(/^[•●▪]\s*/g, '- ');
 
     // 8. Headers
-    s = s.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
-    s = s.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    s = s.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    s = s.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    s = s.replace(/^#{4,}\s*(.+)$/gim, '<h4>$1</h4>');
+    s = s.replace(/^#{3}\s*(.+)$/gim, '<h3>$1</h3>');
+    s = s.replace(/^#{2}\s*(.+)$/gim, '<h2>$1</h2>');
+    s = s.replace(/^#{1}\s*(.+)$/gim, '<h3>$1</h3>');
+
+    // Cleanup any leftover raw hashes anywhere in text: e.g. inline '### Side Heading'
+    s = s.replace(/#{2,4}\s*([^#\n<]+)/g, '<strong>$1</strong>');
+    s = s.replace(/#{1,4}/g, '');
 
     // 9. Citation tags: [Source: file.pdf, Page: 5] -> <span class="citation-tag">...</span>
     s = s.replace(/(\[Source:\s*[^\]]+\])/gi, '<span class="citation-tag">$1</span>');
@@ -821,7 +825,7 @@
     // Update iframe preview
     const iframe = document.getElementById('widget-preview-iframe');
     if (iframe) {
-      const url = `${API_BASE_URL}/widget/embed?api=${encodeURIComponent(API_BASE_URL)}&title=${encodeURIComponent(title)}&color=${encodeURIComponent(color)}&greeting=${encodeURIComponent(greeting)}&suggestions=${encodeURIComponent(suggestions)}`;
+      const url = `${API_BASE_URL}/widget/embed?api=${encodeURIComponent(API_BASE_URL)}&title=${encodeURIComponent(title)}&color=${encodeURIComponent(color)}&greeting=${encodeURIComponent(greeting)}&suggestions=${encodeURIComponent(suggestions)}&_v=${Date.now()}`;
       iframe.src = url;
     }
 

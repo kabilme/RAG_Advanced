@@ -27,7 +27,7 @@ def get_widget_script():
     return FileResponse(
         path=script_path,
         media_type="application/javascript",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate, max-age=0"},
     )
 
 
@@ -43,7 +43,7 @@ def get_embed_page():
     return FileResponse(
         path=embed_path,
         media_type="text/html",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate, max-age=0"},
     )
 
 
