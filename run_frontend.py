@@ -8,14 +8,45 @@ PORT = 8501
 STATIC_DIR = Path(__file__).resolve().parent / "app" / "static"
 
 
+"""Frontend launcher script - launches lightweight responsive web application server."""
+
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+import sys
+
+PORT = 8501
+STATIC_DIR = Path(__file__).resolve().parent / "app" / "static"
+
+
 class FrontendHandler(SimpleHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def translate_path(self, path):
+        """Normalize URL paths so that /static/... cleanly maps to STATIC_DIR/..."""
+        url_path = path.split("?", 1)[0].split("#", 1)[0]
+        if url_path.startswith("/static/"):
+            url_path = url_path[len("/static"):]
+        elif url_path == "/static":
+            url_path = "/"
+        return super().translate_path(url_path)
+
+    def end_headers(self):
+        # Prevent browser from aggressively caching 404s or stale assets
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        # Enable CORS for local cross-origin API calls
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        super().end_headers()
+
     def log_message(self, format, *args):
-        # Quiet standard HTTP request logs for clean terminal output
-        pass
+        # Clean terminal output for server requests
+        sys.stderr.write(f"[{self.log_date_time_string()}] {self.address_string()} - {format % args}\n")
+
 
 
 if __name__ == "__main__":

@@ -107,13 +107,31 @@ def test_responsive_web_ui_endpoints():
     assert "text/html" in browser_resp.headers["content-type"]
     assert "Local RAG" in browser_resp.text
 
-    # 3. Static assets are served cleanly
+    # 3. Static assets are served cleanly via both /static and direct /css and /js routes
     css_resp = client.get("/static/css/app.css")
     assert css_resp.status_code == 200
     assert "text/css" in css_resp.headers["content-type"]
 
+    css_direct = client.get("/css/app.css")
+    assert css_direct.status_code == 200
+    assert "text/css" in css_direct.headers["content-type"]
+
     js_resp = client.get("/static/js/app.js")
     assert js_resp.status_code == 200
     assert "javascript" in js_resp.headers["content-type"]
+
+    js_direct = client.get("/js/app.js")
+    assert js_direct.status_code == 200
+    assert "javascript" in js_direct.headers["content-type"]
+
+    # 4. Verify dedicated frontend handler path translation
+    from run_frontend import FrontendHandler, STATIC_DIR
+    handler = FrontendHandler.__new__(FrontendHandler)
+    handler.directory = str(STATIC_DIR)
+    assert handler.translate_path("/static/css/app.css") == str(STATIC_DIR / "css" / "app.css")
+    assert handler.translate_path("/static/js/app.js") == str(STATIC_DIR / "js" / "app.js")
+    assert handler.translate_path("/css/app.css") == str(STATIC_DIR / "css" / "app.css")
+    assert handler.translate_path("/index.html") == str(STATIC_DIR / "index.html")
+
 
 

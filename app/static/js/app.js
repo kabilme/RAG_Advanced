@@ -6,8 +6,15 @@
 (function () {
   'use strict';
 
+  if (window.__ragAppLoaded) {
+    return;
+  }
+  window.__ragAppLoaded = true;
+
   // Determine API Base URL dynamically
-  const API_BASE_URL = window.location.port === '8501' ? 'http://127.0.0.1:8000' : window.location.origin;
+  const API_BASE_URL = window.location.port === '8501'
+    ? `${window.location.protocol}//${window.location.hostname || '127.0.0.1'}:8000`
+    : window.location.origin;
 
   // Application State
   const state = {
@@ -956,7 +963,7 @@
   }
 
   // --- Initialize App ---
-  document.addEventListener('DOMContentLoaded', () => {
+  function initApp() {
     initElements();
     applyTheme(state.theme);
 
@@ -969,9 +976,9 @@
     });
 
     // Mobile sidebar toggle
-    elements.mobileMenuBtn.addEventListener('click', openMobileSidebar);
-    elements.sidebarBackdrop.addEventListener('click', closeMobileSidebar);
-    elements.themeToggleBtn.addEventListener('click', toggleTheme);
+    elements.mobileMenuBtn?.addEventListener('click', openMobileSidebar);
+    elements.sidebarBackdrop?.addEventListener('click', closeMobileSidebar);
+    elements.themeToggleBtn?.addEventListener('click', toggleTheme);
 
     // Dropzone drag and drop
     const dropzone = document.getElementById('doc-dropzone');
@@ -987,7 +994,7 @@
       dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files) handleFileSelection(e.dataTransfer.files);
+        if (e.dataTransfer && e.dataTransfer.files) handleFileSelection(e.dataTransfer.files);
       });
       fileInput.addEventListener('change', () => {
         if (fileInput.files) handleFileSelection(fileInput.files);
@@ -1011,7 +1018,13 @@
 
     // Poll health status periodically
     setInterval(loadDashboardData, 30000);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 
   // Expose global methods for inline HTML onclick handlers
   window.__ragApp = {
