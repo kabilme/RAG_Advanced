@@ -1,6 +1,8 @@
 """Dedicated Ollama LLM client for streaming and synchronous inference."""
 
 from typing import Any, Dict, Generator, List, Optional
+import queue
+import threading
 import httpx
 import ollama
 
@@ -29,7 +31,7 @@ class OllamaClient:
         self.temperature = temperature if temperature is not None else settings.TEMPERATURE
         self.max_tokens = max_tokens or settings.MAX_TOKENS
         self.timeout = timeout or settings.TIMEOUT_SECONDS
-        self._client = ollama.Client(host=self.base_url)
+        self._client = ollama.Client(host=self.base_url, timeout=float(self.timeout))
 
     def check_health(self) -> Dict[str, Any]:
         """Checks if Ollama server is running and queries available models.
@@ -151,7 +153,10 @@ class OllamaClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> Generator[str, None, None]:
-        """Streams generation tokens chunk-by-chunk from the local Ollama LLM."""
+        """Streams generation tokens chunk-by-chunk from the local Ollama LLM.
+        
+        Yields periodic empty string heartbeats during long prompt evaluation to prevent socket read timeouts.
+        """
         if not prompt.strip():
             return
 
@@ -162,29 +167,61 @@ class OllamaClient:
 
         options = self._build_options(temperature, max_tokens)
 
+        token_queue: queue.Queue = queue.Queue()
+        stop_event = threading.Event()
+        error_holder: List[Exception] = []
+
+        def _worker():
+            try:
+                stream = self._client.chat(
+                    model=self.model_name,
+                    messages=messages,
+                    options=options,
+                    stream=True,
+                )
+                for chunk in stream:
+                    if stop_event.is_set():
+                        break
+                    token = ""
+                    if hasattr(chunk, "message"):
+                        token = chunk.message.content or ""
+                    elif isinstance(chunk, dict) and "message" in chunk:
+                        token = chunk["message"].get("content", "")
+                    if token:
+                        token_queue.put(("token", token))
+            except Exception as exc:
+                error_holder.append(exc)
+            finally:
+                token_queue.put(("done", None))
+
         try:
             logger.debug("Starting streaming generation with Ollama (model: %s)", self.model_name)
-            stream = self._client.chat(
-                model=self.model_name,
-                messages=messages,
-                options=options,
-                stream=True,
-            )
-            for chunk in stream:
-                token = ""
-                if hasattr(chunk, "message"):
-                    token = chunk.message.content or ""
-                elif isinstance(chunk, dict) and "message" in chunk:
-                    token = chunk["message"].get("content", "")
-                if token:
-                    yield token
+            worker_thread = threading.Thread(target=_worker, daemon=True)
+            worker_thread.start()
 
-        except Exception as exc:
-            err_msg = str(exc).lower()
-            if "connection" in err_msg or "connect" in err_msg:
-                raise OllamaConnectionError(f"Cannot connect to Ollama at {self.base_url}. Is Ollama running?") from exc
-            if "not found" in err_msg:
-                raise ModelNotAvailableError(
-                    f"Ollama model '{self.model_name}' is not installed. Run 'ollama pull {self.model_name}'."
-                ) from exc
-            raise RAGException(f"Ollama streaming inference error: {exc}") from exc
+            while True:
+                try:
+                    item_type, data = token_queue.get(timeout=3.0)
+                    if item_type == "token":
+                        yield data
+                    elif item_type == "done":
+                        break
+                except queue.Empty:
+                    if error_holder:
+                        break
+                    # Yield heartbeat sentinel to keep HTTP streaming socket alive during prompt eval
+                    yield ""
+
+            if error_holder:
+                exc = error_holder[0]
+                err_msg = str(exc).lower()
+                if "connection" in err_msg or "connect" in err_msg:
+                    raise OllamaConnectionError(f"Cannot connect to Ollama at {self.base_url}. Is Ollama running?") from exc
+                if "not found" in err_msg:
+                    raise ModelNotAvailableError(
+                        f"Ollama model '{self.model_name}' is not installed. Run 'ollama pull {self.model_name}'."
+                    ) from exc
+                raise RAGException(f"Ollama streaming inference error: {exc}") from exc
+
+        finally:
+            stop_event.set()

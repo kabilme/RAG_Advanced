@@ -170,6 +170,10 @@ class RAGChain:
         # 4. Stream tokens from Ollama
         accumulated_tokens = []
         for token in self.ollama_client.stream_generate(prompt=user_prompt, system_prompt=RAG_SYSTEM_PROMPT):
+            if not token:
+                # Periodic keep-alive heartbeat while Ollama evaluates prompt
+                yield {"type": "ping"}
+                continue
             accumulated_tokens.append(token)
             yield {"type": "token", "content": token}
 

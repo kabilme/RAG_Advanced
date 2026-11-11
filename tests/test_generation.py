@@ -134,6 +134,31 @@ def test_rag_chain_streaming(test_chunks):
     assert len(done_event["citations"]) == 1
 
 
+def test_rag_chain_streaming_handles_heartbeat_pings(test_chunks):
+    mock_retrieval = MagicMock()
+    mock_retrieval.retrieve.return_value = test_chunks
+
+    mock_ollama = MagicMock()
+    # Simulates heartbeats emitted while model evaluates prompt, followed by actual tokens
+    mock_ollama.stream_generate.return_value = iter(["", "", "Solar ", "panels ", "last 25 years."])
+
+    mock_memory = MagicMock()
+    mock_memory.get_history.return_value = []
+
+    chain = RAGChain(
+        retrieval_pipeline=mock_retrieval,
+        ollama_client=mock_ollama,
+        conversation_manager=mock_memory,
+    )
+
+    events = list(chain.stream_query("Lifespan?", session_id="ping-test"))
+    ping_events = [e for e in events if e.get("type") == "ping"]
+    token_events = [e for e in events if e.get("type") == "token"]
+
+    assert len(ping_events) == 2
+    assert "".join(e["content"] for e in token_events) == "Solar panels last 25 years."
+
+
 def test_ollama_client_acceleration_options():
     from app.core.config import settings
 
@@ -211,6 +236,41 @@ def test_prompt_builder_avoids_context_block_labels(test_chunks):
     context = PromptBuilder.format_context_block(test_chunks)
     assert "Context Block" not in context
     assert "Document Excerpt 1" in context
+
+
+def test_prompt_builder_deduplicates_identical_parent_contexts():
+    # 2 chunks with identical parent text (e.g. from the same page)
+    parent_text = "This is a comprehensive parent section describing entire ecosystem services in detail."
+    chunks = [
+        RetrievedChunk(
+            chunk_id="c1",
+            document_id="doc1",
+            text="First focused chunk about water.",
+            score=0.9,
+            rank=1,
+            retrieval_method="hybrid",
+            filename="ecosystems.pdf",
+            page_number=6,
+            parent_text=parent_text,
+        ),
+        RetrievedChunk(
+            chunk_id="c2",
+            document_id="doc1",
+            text="Second focused chunk about soil.",
+            score=0.85,
+            rank=2,
+            retrieval_method="hybrid",
+            filename="ecosystems.pdf",
+            page_number=6,
+            parent_text=parent_text,
+        ),
+    ]
+
+    context = PromptBuilder.format_context_block(chunks)
+    # The full parent text should appear only once to save prompt tokens
+    assert context.count(parent_text) == 1
+    # The second excerpt should show its focused chunk text rather than repeating parent text
+    assert "Second focused chunk about soil." in context
 
 
 def test_format_professional_markdown_reconstructs_squashed_bullets():

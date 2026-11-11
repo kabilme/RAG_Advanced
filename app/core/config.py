@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     MAX_TOKENS: int = 1536
     NUM_THREADS: int = 1
     NUM_CTX: int = 6144
-    TIMEOUT_SECONDS: int = 120
+    TIMEOUT_SECONDS: int = 300
 
     # Hardware & Acceleration Settings (manual activation only)
     ENABLE_ACCELERATION: bool = False

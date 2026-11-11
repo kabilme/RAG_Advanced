@@ -360,7 +360,7 @@ elif menu == "Grounded Chat":
                         f"{API_BASE_URL}/chat/stream",
                         json=payload,
                         stream=True,
-                        timeout=180,
+                        timeout=600,
                     )
                     if resp.status_code != 200:
                         status_placeholder.empty()
@@ -376,6 +376,9 @@ elif menu == "Grounded Chat":
                                     evt_type = event.get("type")
                                     if evt_type == "sources":
                                         sources_container["sources"] = event.get("data", [])
+                                    elif evt_type == "ping":
+                                        # Heartbeat ping keeping connection alive while model processes
+                                        continue
                                     elif evt_type == "token":
                                         if first_token:
                                             status_placeholder.empty()
@@ -392,6 +395,16 @@ elif menu == "Grounded Chat":
                                         yield f"\n⚠️ Error: {event.get('message', 'Unknown error')}"
                                 except json.JSONDecodeError:
                                     continue
+                except requests.exceptions.ReadTimeout:
+                    status_placeholder.empty()
+                    yield (
+                        "\n⚠️ **Inference Request Timed Out (Read Timeout)**\n\n"
+                        "The local model took longer than expected to process the context on CPU.\n\n"
+                        "**To resolve this:**\n"
+                        "1. Go to **⚙️ Settings > Hardware Acceleration**.\n"
+                        "2. Enable **Hardware Acceleration**, select **CPU**, and set worker threads (e.g. 6 to 12).\n"
+                        "3. Or reduce **Top K Retrieved Chunks** to 5 to evaluate less text."
+                    )
                 except requests.exceptions.RequestException as e:
                     status_placeholder.empty()
                     yield f"⚠️ Network error connecting to backend: {e}"

@@ -81,11 +81,23 @@ class PromptBuilder:
             return "No relevant document context was retrieved."
 
         lines = ["=== RETRIEVED DOCUMENT CONTEXT (UNTRUSTED DATA) ==="]
+        seen_parent_texts = set()
         for idx, chunk in enumerate(chunks, start=1):
             citation_tag = chunk.to_citation()
-            # Supply full parent text if available to provide complete paragraph and document context
-            text_to_show = chunk.parent_text if (chunk.parent_text and len(chunk.parent_text) > len(chunk.text)) else chunk.text
-            lines.append(f"\n--- Document Excerpt {idx} | Citation Tag: {citation_tag} ---\n{text_to_show.strip()}")
+            # If full parent text is available and hasn't been shown yet, provide it.
+            # If the same parent context was already included in a prior excerpt, show the focused chunk text
+            # to avoid duplicating massive paragraph blocks across multiple chunks from the same page.
+            if chunk.parent_text and len(chunk.parent_text) > len(chunk.text):
+                clean_parent = chunk.parent_text.strip()
+                if clean_parent not in seen_parent_texts:
+                    text_to_show = clean_parent
+                    seen_parent_texts.add(clean_parent)
+                else:
+                    text_to_show = chunk.text.strip()
+            else:
+                text_to_show = chunk.text.strip()
+
+            lines.append(f"\n--- Document Excerpt {idx} | Citation Tag: {citation_tag} ---\n{text_to_show}")
             lines.append("--------------------------------------------------")
         lines.append("=== END OF RETRIEVED CONTEXT ===")
         return "\n".join(lines)
