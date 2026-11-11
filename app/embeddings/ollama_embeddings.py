@@ -25,7 +25,7 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         self._model_name = model_name or settings.EMBEDDING_MODEL
         self._base_url = base_url or settings.OLLAMA_BASE_URL
         self._batch_size = batch_size
-        self._client = ollama.Client(host=self._base_url)
+        self._client = ollama.Client(host=self._base_url, timeout=getattr(settings, "TIMEOUT_SECONDS", 120))
         self._dimension: Optional[int] = None
 
     @property

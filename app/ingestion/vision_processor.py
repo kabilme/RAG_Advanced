@@ -168,7 +168,7 @@ class VisionProcessor:
         model_name = getattr(settings, "VISION_MODEL", "moondream")
 
         try:
-            client = custom_client or ollama.Client(host=settings.OLLAMA_BASE_URL)
+            client = custom_client or ollama.Client(host=settings.OLLAMA_BASE_URL, timeout=45.0)
             logger.debug("Dispatching normalized PNG to Ollama vision model '%s' (hash: %s)", model_name, img_hash[:8])
             resp = client.generate(
                 model=model_name,

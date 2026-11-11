@@ -212,12 +212,14 @@ elif menu == "Document Management":
                 files_payload.append(("files", (uf.name, uf.getvalue(), uf.type)))
 
             try:
-                resp = requests.post(f"{API_BASE_URL}/documents/upload", files=files_payload, timeout=300)
+                resp = requests.post(f"{API_BASE_URL}/documents/upload", files=files_payload, timeout=600)
                 if resp.status_code == 200:
                     st.success(f"Successfully processed and indexed {len(uploaded_files)} document(s)!")
                     st.rerun()
                 else:
                     st.error(f"Upload failed: {resp.text}")
+            except requests.exceptions.Timeout:
+                st.error("⏱️ Document ingestion timed out. The document may be large or CPU acceleration is inactive (single-thread mode). Go to Settings → Hardware & Acceleration, enable acceleration with 4–8 threads, or disable Vision Model to speed up ingestion.")
             except Exception as e:
                 st.error(f"Error communicating with backend: {e}")
 
