@@ -124,9 +124,12 @@
     s = s.replace(/(\[[^\]]+\])\s+([A-Z][a-zA-Z0-9\s]{1,40}:)/g, '$1\n\n- $2');
     s = s.replace(/(\[[^\]]+\])\s+([A-Z][a-zA-Z0-9].*)$/gm, '$1\n\n$2');
 
-    // 5. Detach inline bullets following periods: e.g. '. - Next Item:'
-    s = s.replace(/(\.)\s*-\s*([A-Z])/g, '$1\n\n- $2');
-    s = s.replace(/(\.)\s*[•●▪]\s*([A-Z])/g, '$1\n\n- $2');
+    // 5. Detach inline bullets following periods: e.g. '. - Next Item:' or '. - **Next Item**:'
+    s = s.replace(/(\.)\s*-\s*(\*{0,2}[A-Z])/g, '$1\n\n- $2');
+    s = s.replace(/(\.)\s*[•●▪]\s*(\*{0,2}[A-Z])/g, '$1\n\n- $2');
+
+    // 5b. Detach major section/category headings stuck to the end of a sentence
+    s = s.replace(/(\.)\s*(\*{0,2}(?:Similarities|Differences|Key Findings|Overview|Analysis|Features|Advantages|Disadvantages|Recommendations|Background|Conclusions?|Summary)\b\*{0,2}:?)/g, '$1\n\n$2');
 
     // 6. Detach inline first bullet stuck to colon:
     s = s.replace(/(:\s*)-\s*/g, ':\n\n- ');

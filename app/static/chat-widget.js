@@ -885,6 +885,21 @@
       s = s.replace(/([^#\n])\s*(#{1,4})\s*/g, '$1\n\n$2 ');
       s = s.replace(/^#\s*$/gm, '');
 
+      // Detach inline bullets following periods: e.g. '. - Next Item:' or '. - **Next Item**:'
+      s = s.replace(/(\.)\s*-\s*(\*{0,2}[A-Z])/g, '$1\n\n- $2');
+      s = s.replace(/(\.)\s*[•●▪]\s*(\*{0,2}[A-Z])/g, '$1\n\n- $2');
+
+      // Detach major section/category headings stuck to the end of a sentence
+      s = s.replace(/(\.)\s*(\*{0,2}(?:Similarities|Differences|Key Findings|Overview|Analysis|Features|Advantages|Disadvantages|Recommendations|Background|Conclusions?|Summary)\b\*{0,2}:?)/g, '$1\n\n$2');
+
+      // Detach inline first bullet stuck to colon
+      s = s.replace(/(:\s*)-\s*/g, ':\n\n- ');
+      s = s.replace(/(:\s*)(\*{0,2}[A-Z][a-zA-Z0-9\s]{2,40}\*{0,2}\s*[:\-]\s*[a-zA-Z])/g, ':\n\n- $2');
+
+      // Convert unicode bullets • to markdown list items
+      s = s.replace(/(?:\s*[\r\n]+\s*|\s+)[•●▪]\s*/g, '\n\n- ');
+      s = s.replace(/^[•●▪]\s*/g, '- ');
+
       // Markdown Headings (###, ####, ##, #) -> convert to clean HTML headings without stray hashes
       s = s.replace(/^#{4,}\s*(.+)$/gim, '<h4>$1</h4>');
       s = s.replace(/^#{3}\s*(.+)$/gim, '<h3>$1</h3>');

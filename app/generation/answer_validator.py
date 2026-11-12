@@ -342,9 +342,16 @@ class AnswerValidator:
 
             s = re.sub(r"(\[[^\]]+\])\s+([A-Z][a-zA-Z0-9].*)$", _split_after_citation, s, flags=re.MULTILINE)
 
-            # 1c. Detach inline bullets following a period:
-            s = re.sub(r"(\.)\s*-\s*([A-Z])", r"\1\n\n- \2", s)
-            s = re.sub(r"(\.)\s*[•●▪]\s*([A-Z])", r"\1\n\n- \2", s)
+            # 1c. Detach inline bullets following a period (plain or bold):
+            s = re.sub(r"(\.)\s*-\s*(\*{0,2}[A-Z])", r"\1\n\n- \2", s)
+            s = re.sub(r"(\.)\s*[•●▪]\s*(\*{0,2}[A-Z])", r"\1\n\n- \2", s)
+
+            # 1c2. Detach major section/category headings stuck to the end of a sentence:
+            s = re.sub(
+                r"(\.)\s*(\*{0,2}(?:Similarities|Differences|Key Findings|Overview|Analysis|Features|Advantages|Disadvantages|Recommendations|Background|Conclusions?|Summary)\b\*{0,2}:?)",
+                r"\1\n\n\2",
+                s,
+            )
 
             # 1d. Fix inline first bullet stuck to colon introductory phrase:
             # e.g. "include: - Filtering water: forests..." or "Here are five examples: Filtering Water: ecosystems..."

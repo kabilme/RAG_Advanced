@@ -334,8 +334,9 @@ class CitationManager:
                     )
                 )
 
-        # Clean any double spaces left from stripping invalid citations
-        sanitized_text = re.sub(r"\s{2,}", " ", sanitized_text).strip()
+        # Clean any double horizontal spaces left from stripping invalid citations without collapsing line breaks
+        sanitized_text = re.sub(r"[ \t]{2,}", " ", sanitized_text)
+        sanitized_text = re.sub(r"\n{3,}", "\n\n", sanitized_text).strip()
         return validated_items, sanitized_text
 
     @classmethod

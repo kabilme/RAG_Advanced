@@ -192,3 +192,21 @@ def test_validate_citations_blocks_cross_document_mismatch():
     assert items[0].location_value == "6"
     assert "[Source: hees101.pdf, Page: 6]" in sanitized
     assert "Soft_Skills_Excel.docx" not in sanitized
+
+
+def test_validate_citations_preserves_multiline_structure_and_paragraphs():
+    multiline_text = (
+        "### Section Title\n\n"
+        "Introductory paragraph with context.\n\n"
+        "Similarities:\n\n"
+        "- Item One: Description here.\n"
+        "- Item Two: Another description here.\n\n"
+        "Differences:\n\n"
+        "- Item Three: Distinct description here."
+    )
+    items, sanitized = CitationManager.validate_citations(multiline_text, [])
+    assert "\n\n" in sanitized
+    assert "Similarities:\n\n- Item One" in sanitized
+    assert "Differences:\n\n- Item Three" in sanitized
+    # Confirm it does not squash into a single line
+    assert len(sanitized.splitlines()) >= 8
