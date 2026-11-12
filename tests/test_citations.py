@@ -152,3 +152,43 @@ def test_validate_citations_strips_ungrounded_fabricated_location():
     assert len(items) == 1
     assert items[0].is_valid is False
     assert "[Source: solar.pdf, Page: 99]" not in sanitized
+
+
+def test_validate_citations_blocks_cross_document_mismatch():
+    # Demonstrates blocking citations where doc/page exists but statement has zero textual overlap
+    chunk_excel = RetrievedChunk(
+        chunk_id="c_excel",
+        document_id="doc-excel",
+        text="Excel text functions include LEFT, RIGHT, MID, CONCATENATE, and LEN.",
+        score=0.45,
+        rank=2,
+        retrieval_method="hybrid",
+        filename="Soft_Skills_Excel.docx",
+        section="Text Functions",
+    )
+    chunk_ecosystem = RetrievedChunk(
+        chunk_id="c_eco",
+        document_id="doc-eco",
+        text="Ecosystem biodiversity in oceans and rainforests stabilizes global climate.",
+        score=0.92,
+        rank=1,
+        retrieval_method="hybrid",
+        filename="hees101.pdf",
+        page_number=6,
+    )
+
+    # LLM mistakenly cited Excel docx for an ecosystem claim
+    answer = (
+        "Ecosystem biodiversity in oceans and rainforests stabilizes climate "
+        "[Source: Soft_Skills_Excel.docx, Section: Text Functions]."
+    )
+
+    items, sanitized = CitationManager.validate_citations(answer, [chunk_ecosystem, chunk_excel])
+
+    # CitationManager detects zero overlap with the Excel chunk and auto-corrects to the matching ecosystem chunk
+    assert len(items) == 1
+    assert items[0].is_valid is True
+    assert items[0].filename == "hees101.pdf"
+    assert items[0].location_value == "6"
+    assert "[Source: hees101.pdf, Page: 6]" in sanitized
+    assert "Soft_Skills_Excel.docx" not in sanitized

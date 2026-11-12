@@ -49,6 +49,26 @@ class CitationManager:
         re.IGNORECASE,
     )
 
+    _STOPWORDS = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
+        "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both",
+        "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't",
+        "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't",
+        "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
+        "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+        "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more",
+        "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
+        "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
+        "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's",
+        "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they",
+        "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under",
+        "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were",
+        "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who",
+        "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll",
+        "you're", "you've", "your", "yours", "yourself", "yourselves", "source", "page", "slide", "sheet",
+        "section", "document", "available", "context", "excerpt", "following", "include", "includes",
+    }
+
     @classmethod
     def normalize_location_type(cls, loc_type: Optional[str]) -> Optional[str]:
         """Normalizes location keywords (e.g. 'pages', 'p.', 'slides') to standard capitalized names."""
@@ -181,34 +201,83 @@ class CitationManager:
                         matched_chunk = c
                         break
 
+            citation_pos = answer_text.find(raw)
+            window_start = max(0, citation_pos - 300)
+            surrounding_text = answer_text[window_start:citation_pos].lower()
+            surrounding_words = set(re.findall(r"\b[a-z]{3,}\b", surrounding_text)) - cls._STOPWORDS
+
             if matched_chunk:
-                # Valid citation with verified location
-                validated_items.append(
-                    CitationItem(
-                        raw_citation=raw,
-                        filename=matched_chunk.filename,
-                        location_type=loc_type,
-                        location_value=loc_val,
-                        is_valid=True,
-                        document_id=matched_chunk.document_id,
-                        chunk_id=matched_chunk.chunk_id,
-                        snippet=matched_chunk.text[:200] + ("..." if len(matched_chunk.text) > 200 else ""),
-                        metadata=matched_chunk.metadata,
+                chunk_words = set(
+                    re.findall(r"\b[a-z]{3,}\b", (matched_chunk.parent_text or matched_chunk.text).lower())
+                ) - cls._STOPWORDS
+                overlap = len(surrounding_words.intersection(chunk_words))
+
+                # Check if the citation was attached to an unrelated excerpt
+                if len(surrounding_words) >= 4 and overlap == 0:
+                    best_alt_chunk = None
+                    best_alt_overlap = 0
+                    for c in retrieved_chunks:
+                        c_w = set(re.findall(r"\b[a-z]{3,}\b", (c.parent_text or c.text).lower())) - cls._STOPWORDS
+                        o = len(surrounding_words.intersection(c_w))
+                        if o > best_alt_overlap:
+                            best_alt_overlap = o
+                            best_alt_chunk = c
+
+                    if best_alt_chunk and best_alt_overlap >= 3:
+                        corrected_tag = best_alt_chunk.to_citation()
+                        logger.info(
+                            "Auto-correcting misplaced citation '%s' -> '%s' (claim overlap: %d)",
+                            raw, corrected_tag, best_alt_overlap
+                        )
+                        sanitized_text = sanitized_text.replace(raw, corrected_tag)
+                        validated_items.append(
+                            CitationItem(
+                                raw_citation=corrected_tag,
+                                filename=best_alt_chunk.filename,
+                                location_type="Page" if best_alt_chunk.page_number else "Section",
+                                location_value=str(best_alt_chunk.page_number or best_alt_chunk.section or ""),
+                                is_valid=True,
+                                document_id=best_alt_chunk.document_id,
+                                chunk_id=best_alt_chunk.chunk_id,
+                                snippet=best_alt_chunk.text[:200] + ("..." if len(best_alt_chunk.text) > 200 else ""),
+                                metadata=best_alt_chunk.metadata,
+                            )
+                        )
+                    else:
+                        logger.warning("Stripping ungrounded citation with zero claim overlap: %s", raw)
+                        validated_items.append(
+                            CitationItem(
+                                raw_citation=raw,
+                                filename=fname,
+                                location_type=loc_type,
+                                location_value=loc_val,
+                                is_valid=False,
+                            )
+                        )
+                        sanitized_text = sanitized_text.replace(raw, "")
+                else:
+                    # Valid citation with verified location and text overlap
+                    validated_items.append(
+                        CitationItem(
+                            raw_citation=raw,
+                            filename=matched_chunk.filename,
+                            location_type=loc_type,
+                            location_value=loc_val,
+                            is_valid=True,
+                            document_id=matched_chunk.document_id,
+                            chunk_id=matched_chunk.chunk_id,
+                            snippet=matched_chunk.text[:200] + ("..." if len(matched_chunk.text) > 200 else ""),
+                            metadata=matched_chunk.metadata,
+                        )
                     )
-                )
             elif loc_type and loc_val:
                 # Location specified but no exact match in retrieved chunks.
                 # Check if the surrounding text aligns with one of the retrieved chunks
                 # (e.g. LLM used printed book page instead of PDF physical page index).
-                citation_pos = answer_text.find(raw)
-                window_start = max(0, citation_pos - 300)
-                surrounding_text = answer_text[window_start:citation_pos].lower()
-                surrounding_words = set(re.findall(r"\w{3,}", surrounding_text))
-
                 best_chunk = None
                 best_overlap = 0
                 for c in matching_chunks:
-                    chunk_words = set(re.findall(r"\w{3,}", c.text.lower()))
+                    chunk_words = set(re.findall(r"\w{3,}", c.text.lower())) - cls._STOPWORDS
                     overlap = len(surrounding_words.intersection(chunk_words))
                     if overlap > best_overlap:
                         best_overlap = overlap

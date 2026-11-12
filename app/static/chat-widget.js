@@ -1096,7 +1096,9 @@
                   bubble.innerHTML = this.formatMarkdown(accumulatedTokens);
                   this.scrollToBottom();
                 } else if (data.type === "done") {
-                  if (data.citations && data.citations.length > 0) {
+                  if (data.is_abstained) {
+                    sources = [];
+                  } else if (data.citations && data.citations.length > 0) {
                     sources = data.citations;
                   }
                   if (data.answer) {

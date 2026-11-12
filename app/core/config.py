@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     LLM_MODEL: str = "llama3.2"
     EMBEDDING_MODEL: str = "nomic-embed-text"
-    TEMPERATURE: float = 0.1
+    TEMPERATURE: float = 0.0
     MAX_TOKENS: int = 1536
     NUM_THREADS: int = 1
     NUM_CTX: int = 6144

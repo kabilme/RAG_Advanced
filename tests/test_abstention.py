@@ -88,3 +88,42 @@ def test_numerical_grounding_validation(sample_context_chunk):
     nums_ok2, unsupported2 = AnswerValidator.validate_numerical_grounding(grounded_answer, context)
     assert nums_ok2 is True
     assert len(unsupported2) == 0
+
+
+def test_unsupported_question_hallucination_triggers_abstention(sample_context_chunk):
+    # If the LLM generates a fabricated answer instead of abstaining
+    hallucinated_answer = (
+        "The merchant's favorite camel was named Mubarak, known for its incredible endurance in desert sandstorms."
+    )
+    result = AnswerValidator.validate_answer(
+        question="What is the name of the merchant's camel?",
+        answer=hallucinated_answer,
+        chunks=sample_context_chunk,
+    )
+    # The validator detects ungrounded assertions and forces abstention
+    assert result["should_abstain"] is True
+    assert result["is_grounded"] is False
+    assert result["validated_answer"] == ABSTENTION_MESSAGE
+
+
+def test_factual_grounding_validation(sample_context_chunk):
+    # Factual grounding detects ungrounded claims
+    grounded = "The merchant traveled across the Thar desert carrying silk and spices."
+    is_gr, ratio, ungr = AnswerValidator.validate_factual_grounding(
+        question="What was the merchant carrying?",
+        answer=grounded,
+        chunks=sample_context_chunk,
+    )
+    assert is_gr is True
+    assert ratio == 1.0
+    assert len(ungr) == 0
+
+    hallucinated = "The merchant was accompanied by an emperor who ruled ancient Constantinople with a grand navy."
+    is_gr2, ratio2, ungr2 = AnswerValidator.validate_factual_grounding(
+        question="Who accompanied the merchant?",
+        answer=hallucinated,
+        chunks=sample_context_chunk,
+    )
+    assert is_gr2 is False
+    assert ratio2 == 0.0
+    assert len(ungr2) >= 1

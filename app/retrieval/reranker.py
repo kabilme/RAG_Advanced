@@ -88,7 +88,21 @@ class CrossEncoderReranker:
 
             # Sort descending by cross-encoder score
             scored_candidates.sort(key=lambda x: x[1], reverse=True)
-            top_scored = scored_candidates[:k]
+
+            # Relevance filtering: eliminate low-relevance noise candidates
+            best_score = scored_candidates[0][1] if scored_candidates else 0.0
+            if best_score >= 0.50:
+                min_threshold = max(0.18, best_score * 0.22)
+            elif best_score >= 0.30:
+                min_threshold = max(0.15, best_score * 0.20)
+            else:
+                min_threshold = 0.12
+
+            filtered_candidates = [item for item in scored_candidates if item[1] >= min_threshold]
+            if not filtered_candidates and scored_candidates:
+                filtered_candidates = [item for item in scored_candidates if item[1] >= 0.10]
+
+            top_scored = filtered_candidates[:k]
 
             reranked_results: List[RetrievedChunk] = []
             for rank, (chunk, score) in enumerate(top_scored, start=1):

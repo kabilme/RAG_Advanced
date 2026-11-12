@@ -709,7 +709,9 @@
               if (event.answer) {
                 accumulatedTokens = event.answer;
               }
-              if (event.citations && event.citations.length > 0) {
+              if (event.is_abstained) {
+                verifiedSources = [];
+              } else if (event.citations && event.citations.length > 0) {
                 verifiedSources = event.citations;
               }
             } else if (event.type === 'error') {

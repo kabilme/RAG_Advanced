@@ -24,6 +24,26 @@ class AnswerValidator:
         re.compile(r"no\s+mention\s+of", re.IGNORECASE),
     ]
 
+    _STOPWORDS = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
+        "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both",
+        "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't",
+        "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't",
+        "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
+        "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+        "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more",
+        "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
+        "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
+        "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's",
+        "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they",
+        "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under",
+        "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were",
+        "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who",
+        "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll",
+        "you're", "you've", "your", "yours", "yourself", "yourselves", "source", "page", "slide", "sheet",
+        "section", "document", "documents", "available", "context", "excerpt", "following", "include", "includes",
+    }
+
     @classmethod
     def is_abstention(cls, text: str) -> bool:
         """Detects whether text is purely or predominantly an abstention response."""
@@ -402,6 +422,79 @@ class AnswerValidator:
         return res
 
     @classmethod
+    def validate_factual_grounding(
+        cls,
+        question: str,
+        answer: str,
+        chunks: List[RetrievedChunk],
+    ) -> Tuple[bool, float, List[str]]:
+        """Evaluates whether the substantive assertions in the answer are grounded
+        in the retrieved document chunks.
+
+        Returns:
+            (is_grounded: bool, grounding_ratio: float, ungrounded_assertions: List[str])
+        """
+        if not chunks:
+            return False, 0.0, ["No context chunks available."]
+
+        # Clean answer to extract pure factual statements
+        clean_answer = re.sub(r"\[Source:[^\]]+\]", "", answer, flags=re.IGNORECASE)
+        clean_answer = re.sub(r"^###\s+.*$", "", clean_answer, flags=re.MULTILINE)
+
+        # Context vocabulary
+        combined_context = " ".join((c.parent_text or "") + " " + c.text for c in chunks).lower()
+        context_words = set(re.findall(r"\b[a-z]{3,}\b", combined_context)) - cls._STOPWORDS
+        context_stems = {w[:5] if len(w) >= 6 else w for w in context_words}
+
+        # Question vocabulary
+        question_words = set(re.findall(r"\b[a-z]{3,}\b", question.lower())) - cls._STOPWORDS
+
+        # Break answer into assertions
+        lines = clean_answer.split("\n")
+        assertions: List[str] = []
+        for line in lines:
+            line_s = line.strip()
+            if not line_s:
+                continue
+            # If line is a bullet point or numbered item
+            if line_s.startswith(("-", "*", "•")) or re.match(r"^\d+\.", line_s):
+                content = re.sub(r"^[-*•\d.]+\s*", "", line_s)
+                if len(content) >= 20:
+                    assertions.append(content)
+            else:
+                sentences = re.split(r"(?<=[.!?])\s+", line_s)
+                for s in sentences:
+                    if len(s.strip()) >= 25:
+                        assertions.append(s.strip())
+
+        if not assertions:
+            return True, 1.0, []
+
+        grounded_count = 0
+        ungrounded: List[str] = []
+
+        for assertion in assertions:
+            words = set(re.findall(r"\b[a-z]{3,}\b", assertion.lower())) - cls._STOPWORDS
+            new_words = words - question_words
+            if len(new_words) < 3:
+                grounded_count += 1
+                continue
+
+            matches = {w for w in new_words if w in context_words or (len(w) >= 5 and w[:5] in context_stems)}
+            ratio = len(matches) / len(new_words)
+
+            if ratio >= 0.22 or len(matches) >= 2:
+                grounded_count += 1
+            else:
+                ungrounded.append(assertion)
+
+        total = len(assertions)
+        grounding_ratio = grounded_count / total if total > 0 else 1.0
+        is_grounded = len(ungrounded) == 0
+
+        return is_grounded, grounding_ratio, ungrounded
+
+    @classmethod
     def validate_answer(
         cls,
         question: str,
@@ -441,13 +534,40 @@ class AnswerValidator:
         answer = cls.format_professional_markdown(answer)
 
         # 3. Check numerical grounding
-        combined_context = " ".join(c.text for c in chunks)
+        combined_context = " ".join((c.parent_text or "") + " " + c.text for c in chunks)
         nums_ok, unsupported_nums = cls.validate_numerical_grounding(answer, combined_context)
         if not nums_ok:
             warnings.append(f"Answer contains numbers not found in retrieved context: {unsupported_nums}")
 
+        # 4. Check factual grounding
+        facts_ok, grounding_ratio, ungrounded_claims = cls.validate_factual_grounding(
+            question=question,
+            answer=answer,
+            chunks=chunks,
+        )
+        if not facts_ok:
+            warnings.append(
+                f"Answer contains potentially ungrounded assertions: {len(ungrounded_claims)} unverified item(s)."
+            )
+
+        # If factual grounding ratio is unacceptably low (severe hallucination / fabricated content)
+        if len(ungrounded_claims) >= 1 and grounding_ratio < 0.30:
+            logger.warning(
+                "Abstaining due to low factual grounding (ratio: %.2f). Question: '%s'",
+                grounding_ratio,
+                question,
+            )
+            return {
+                "is_grounded": False,
+                "should_abstain": True,
+                "validated_answer": ABSTENTION_MESSAGE,
+                "warnings": ["Answer contained ungrounded information not present in the uploaded documents."],
+            }
+
+        is_grounded = nums_ok and facts_ok
+
         return {
-            "is_grounded": nums_ok,
+            "is_grounded": is_grounded,
             "should_abstain": False,
             "validated_answer": answer,
             "warnings": warnings,

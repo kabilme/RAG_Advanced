@@ -797,7 +797,11 @@
                     bubble.innerHTML = formatMarkdown(accumulatedTokens);
                     scrollToBottom();
                   } else if (data.type === "done") {
-                    if (data.citations && data.citations.length > 0) sources = data.citations;
+                    if (data.is_abstained) {
+                      sources = [];
+                    } else if (data.citations && data.citations.length > 0) {
+                      sources = data.citations;
+                    }
                     if (data.answer) accumulatedTokens = data.answer;
                   } else if (data.type === "error") {
                     accumulatedTokens += `\n\n⚠️ *${data.message || "An error occurred."}*`;
