@@ -38,7 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for local Streamlit UI or web clients
+# Enable CORS for local Web UI and external embed clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

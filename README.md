@@ -53,7 +53,12 @@ Includes a **website-embeddable chatbot widget** powered by native Shadow DOM th
 5. **Structure-Aware & Parent-Child Chunking**: Preserves section hierarchies, slide boundaries, table structures, and page provenance.
 6. **Hybrid Dense + Sparse Retrieval**: Combines dense semantic vector retrieval (ChromaDB cosine similarity) with sparse keyword retrieval (BM25) using Reciprocal Rank Fusion (RRF).
 7. **Cross-Encoder Reranking**: Re-scores candidate chunks with Sentence Transformers cross-encoders (`bge-reranker-base` or `ms-marco-MiniLM-L-6-v2`) for optimal context quality.
-8. **Strict Hallucination Prevention & Abstention**: Rejects ungrounded statements, checks numerical grounding against source context, and triggers deterministic abstention whenever retrieval context is insufficient.
+8. **Strict Zero-Hallucination & Document Grounding**:
+    - **Deterministic Greedy Decoding**: Enforces `TEMPERATURE=0.0` to eliminate stochastic generation drift and creative extrapolation.
+    - **Context-Exclusivity Directives**: Strictly confines LLM answers to explicitly retrieved document context, prohibiting reliance on pre-trained general knowledge, outside facts, or fabricated real-world examples.
+    - **Relevance Floor Filtering**: Automatically drops low-relevance noise chunks post-reranking so unrelated documents cannot contaminate generation context.
+    - **Lexical Claim-to-Citation Validation**: Verifies that each cited excerpt actually contains the factual claim made in the answer, auto-correcting misplaced references and stripping ungrounded citations.
+    - **Post-Generation Grounding Validator**: Evaluates substantive assertions against the document vocabulary, automatically enforcing deterministic abstention (*"The available documents do not contain sufficient information to answer this question accurately."*) if generation lacks source evidence.
 9. **Traceable Citations & Location Auto-Correction**: Produces verified source attributions formatted as `[Source: document.pdf, Page: X]` mapped directly to original chunks, autocorrecting hallucinated page numbers based on actual chunk metadata.
 10. **Website-Embeddable Chatbot Widget**:
     - **Native Shadow DOM Encapsulation**: Complete CSS and DOM isolation — host site styles (Bootstrap, Tailwind, WordPress) never break the chatbot, and chatbot CSS never bleeds into the host page.
@@ -270,7 +275,7 @@ RAG_advanced/
 │   │   └── embed.html               # Responsive standalone chat page for iframes
 │   └── vectorstore/
 │       └── chroma_store.py          # Persistent ChromaDB client & vector CRUD
-├── tests/                           # Complete automated pytest test suite (88 tests)
+├── tests/                           # Complete automated pytest test suite (93 tests)
 │   ├── test_abstention.py
 │   ├── test_api.py
 │   ├── test_chunking.py
@@ -296,18 +301,18 @@ RAG_advanced/
 
 ## Testing & Quality Assurance
 
-Run the comprehensive automated test suite (76 tests covering all modules):
+Run the comprehensive automated test suite (93 tests covering all modules):
 ```powershell
 .venv\Scripts\pytest.exe -v
 ```
 
 ### Test Coverage Highlights:
-- **Abstention & Grounding**: Validates deterministic abstention on unsupported questions, missing context, and fabricated figures.
+- **Abstention & Grounding**: Validates deterministic abstention on unsupported questions, missing context, fabricated assertions, and ungrounded numbers.
 - **Contextual Retrieval**: Tests structural and local LLM-assisted situated chunk preambles and BM25 document-level keyword matching.
 - **Multimodal Vision**: Tests image filtering, solid-color mask rejection, CMYK-to-RGB normalization, and vision prompt transcription.
 - **Embeddable Chatbot**: Tests `/widget/chat-widget.js`, `/widget/embed`, `/widget/demo`, and `/widget/info` endpoints.
 - **Document Ingestion**: Validates PDF, DOCX, PPTX, XLSX, CSV, Markdown, and HTML extraction pipelines.
-- **Citations**: Validates regex extraction flexibility, hallucinated page number autocorrection, and ungrounded tag stripping.
+- **Citations**: Validates regex extraction flexibility, hallucinated page number autocorrection, cross-document mismatch blocking, and ungrounded tag stripping.
 - **Vector Store & Hybrid Search**: Validates ChromaDB CRUD, cosine distance thresholds, BM25 indexing, and RRF rank fusion.
 
 ---
