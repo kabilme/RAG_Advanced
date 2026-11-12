@@ -1028,6 +1028,12 @@
     initSettings();
     initEvaluation();
 
+    // Wire API Docs button to active backend API base URL
+    const btnApiDocs = document.getElementById('btn-api-docs');
+    if (btnApiDocs) {
+      btnApiDocs.href = `${API_BASE_URL}/docs`;
+    }
+
     // Check hash route or default to dashboard
     const initialHash = (window.location.hash || '').replace('#', '');
     const validTabs = ['dashboard', 'documents', 'chat', 'retrieval', 'chatbot', 'settings', 'evaluation'];

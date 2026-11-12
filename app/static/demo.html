@@ -429,8 +429,8 @@
       </div>
     </div>
     <div class="header-links">
-      <a href="/docs" target="_blank">API Docs</a>
-      <a href="/widget/embed" target="_blank">Direct Iframe View</a>
+      <a href="http://127.0.0.1:8000/docs" id="header-link-docs" target="_blank">API Docs</a>
+      <a href="http://127.0.0.1:8000/widget/embed" id="header-link-embed" target="_blank">Direct Iframe View</a>
       <a href="http://localhost:8501" target="_blank">RAG Web Console</a>
     </div>
   </header>
@@ -639,6 +639,11 @@
 
       function generateSnippets() {
         const api = cfgApiUrl.value.trim() || "http://127.0.0.1:8000";
+        const linkDocs = document.getElementById("header-link-docs");
+        if (linkDocs) linkDocs.href = `${api}/docs`;
+        const linkEmbed = document.getElementById("header-link-embed");
+        if (linkEmbed) linkEmbed.href = `${api}/widget/embed`;
+
         const title = cfgTitle.value.trim();
         const subtitle = cfgSubtitle.value.trim();
         const color = cfgColorText.value.trim();

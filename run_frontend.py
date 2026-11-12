@@ -23,6 +23,18 @@ class FrontendHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def do_GET(self):
+        url_path = self.path.split("?", 1)[0].split("#", 1)[0]
+        if url_path in ("/docs", "/redoc", "/openapi.json"):
+            # Redirect to backend FastAPI Swagger / ReDoc docs on port 8000
+            target_url = f"http://127.0.0.1:8000{self.path}"
+            self.send_response(302)
+            self.send_header("Location", target_url)
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            return
+        return super().do_GET()
+
     def translate_path(self, path):
         """Normalize URL paths so that /static/... cleanly maps to STATIC_DIR/..."""
         url_path = path.split("?", 1)[0].split("#", 1)[0]

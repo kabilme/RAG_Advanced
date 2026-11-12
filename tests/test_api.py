@@ -1,6 +1,7 @@
 """Integration tests for FastAPI REST API endpoints."""
 
 import io
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 import pytest
 from app.main import app
@@ -135,6 +136,15 @@ def test_responsive_web_ui_endpoints():
     assert handler.translate_path("/widget/demo") == str(STATIC_DIR / "demo.html")
     assert handler.translate_path("/widget/embed") == str(STATIC_DIR / "embed.html")
     assert handler.translate_path("/widget/chat-widget.js") == str(STATIC_DIR / "chat-widget.js")
+
+    # 5. Verify /docs redirect on dedicated frontend handler (port 8501)
+    handler.path = "/docs"
+    handler.send_response = MagicMock()
+    handler.send_header = MagicMock()
+    handler.end_headers = MagicMock()
+    handler.do_GET()
+    handler.send_response.assert_called_with(302)
+    handler.send_header.assert_any_call("Location", "http://127.0.0.1:8000/docs")
 
 
 
