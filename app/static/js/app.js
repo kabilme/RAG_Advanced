@@ -829,6 +829,11 @@
       iframe.src = url;
     }
 
+    const openStudioBtn = document.getElementById('btn-open-studio');
+    if (openStudioBtn) {
+      openStudioBtn.href = `${API_BASE_URL}/widget/demo`;
+    }
+
     // Update Code Snippets
     const scriptSnippet = `<!-- Paste before closing </body> tag on any website -->\n<script \n  src="${API_BASE_URL}/static/chat-widget.js" \n  data-api-url="${API_BASE_URL}"\n  data-title="${escapeHtml(title)}"\n  data-subtitle="${escapeHtml(subtitle)}"\n  data-primary-color="${color}"\n  data-position="${position}"\n  data-greeting="${escapeHtml(greeting)}"\n  data-suggestions="${escapeHtml(suggestions)}"\n  defer>\n</script>`;
     document.getElementById('code-script').textContent = scriptSnippet;

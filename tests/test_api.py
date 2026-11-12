@@ -132,6 +132,9 @@ def test_responsive_web_ui_endpoints():
     assert handler.translate_path("/static/js/app.js") == str(STATIC_DIR / "js" / "app.js")
     assert handler.translate_path("/css/app.css") == str(STATIC_DIR / "css" / "app.css")
     assert handler.translate_path("/index.html") == str(STATIC_DIR / "index.html")
+    assert handler.translate_path("/widget/demo") == str(STATIC_DIR / "demo.html")
+    assert handler.translate_path("/widget/embed") == str(STATIC_DIR / "embed.html")
+    assert handler.translate_path("/widget/chat-widget.js") == str(STATIC_DIR / "chat-widget.js")
 
 
 
