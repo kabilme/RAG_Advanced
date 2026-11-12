@@ -405,8 +405,23 @@
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary btn-sm" onclick="window.__ragApp.reindexDoc('${escapeHtml(d.document_id)}')">🔄 Re-index</button>
-            <button class="btn btn-danger btn-sm" onclick="window.__ragApp.deleteDoc('${escapeHtml(d.document_id)}', '${escapeHtml(d.filename)}')">🗑️ Delete</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reindex-${escapeHtml(d.document_id)}" onclick="window.__ragApp.reindexDoc('${escapeHtml(d.document_id)}')">🔄 Re-index</button>
+            <button class="btn btn-danger btn-sm" id="btn-delete-${escapeHtml(d.document_id)}" onclick="window.__ragApp.deleteDoc('${escapeHtml(d.document_id)}', '${escapeHtml(d.filename)}')">🗑️ Delete</button>
+          </div>
+        </div>
+        <!-- Inline Re-indexing Progress Bar -->
+        <div id="reindex-progress-${escapeHtml(d.document_id)}" class="indexing-progress-box" style="display: none; margin-top: 14px;">
+          <div class="indexing-progress-header">
+            <span class="indexing-progress-title" id="reindex-title-${escapeHtml(d.document_id)}">
+              <span class="spinner-sm"></span> Re-indexing in progress...
+            </span>
+            <span class="indexing-progress-percent" id="reindex-percent-${escapeHtml(d.document_id)}">0%</span>
+          </div>
+          <div class="indexing-progress-bar-bg">
+            <div class="indexing-progress-bar-fill" id="reindex-bar-${escapeHtml(d.document_id)}" style="width: 0%;"></div>
+          </div>
+          <div class="indexing-progress-status" id="reindex-status-${escapeHtml(d.document_id)}">
+            Initializing re-indexing pipeline...
           </div>
         </div>
       `;
@@ -415,19 +430,96 @@
   }
 
   async function reindexDoc(docId) {
-    showToast('Re-indexing document candidates...', 'info');
+    const btnReindex = document.getElementById(`btn-reindex-${docId}`);
+    const btnDelete = document.getElementById(`btn-delete-${docId}`);
+    const progressBox = document.getElementById(`reindex-progress-${docId}`);
+    const progressTitle = document.getElementById(`reindex-title-${docId}`);
+    const progressPercent = document.getElementById(`reindex-percent-${docId}`);
+    const progressBarFill = document.getElementById(`reindex-bar-${docId}`);
+    const progressStatus = document.getElementById(`reindex-status-${docId}`);
+
+    if (btnReindex) {
+      btnReindex.disabled = true;
+      btnReindex.innerHTML = `<span class="spinner-sm"></span> Re-indexing...`;
+    }
+    if (btnDelete) btnDelete.disabled = true;
+
+    if (progressBox) progressBox.style.display = 'block';
+    if (progressBarFill) {
+      progressBarFill.className = 'indexing-progress-bar-fill';
+      progressBarFill.style.width = '10%';
+    }
+    if (progressPercent) progressPercent.textContent = '10%';
+    if (progressTitle) progressTitle.innerHTML = `<span class="spinner-sm"></span> Re-indexing Document in Progress...`;
+    if (progressStatus) progressStatus.textContent = 'Clearing prior vector embeddings and reading file...';
+
+    // Smoothly step through realistic pipeline phases while API processes
+    let currentPct = 15;
+    const stepInterval = setInterval(() => {
+      if (currentPct < 90) {
+        currentPct += 5;
+        if (progressBarFill) progressBarFill.style.width = `${currentPct}%`;
+        if (progressPercent) progressPercent.textContent = `${currentPct}%`;
+
+        if (currentPct >= 35 && currentPct < 60) {
+          if (progressStatus) progressStatus.textContent = 'Parsing structure & generating chunks with overlap...';
+        } else if (currentPct >= 60 && currentPct < 80) {
+          if (progressStatus) progressStatus.textContent = 'Generating neural vector embeddings (nomic-embed-text)...';
+        } else if (currentPct >= 80) {
+          if (progressStatus) progressStatus.textContent = 'Indexing into ChromaDB vector database & BM25 keyword store...';
+        }
+      }
+    }, 380);
+
     try {
       const resp = await fetch(`${API_BASE_URL}/documents/${docId}/reindex`, { method: 'POST' });
+      clearInterval(stepInterval);
+
       if (resp.ok) {
+        if (progressBarFill) {
+          progressBarFill.style.width = '100%';
+          progressBarFill.classList.add('success');
+        }
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressTitle) progressTitle.innerHTML = `✅ Document Re-indexed Successfully!`;
+        if (progressStatus) progressStatus.textContent = 'ChromaDB vectors, BM25 index, and metadata successfully updated.';
         showToast('Document re-indexed successfully!', 'success');
-        loadDocumentsList();
-        loadDashboardData();
+
+        setTimeout(() => {
+          loadDocumentsList();
+          loadDashboardData();
+        }, 1200);
       } else {
         const err = await resp.text();
+        if (progressBarFill) {
+          progressBarFill.style.width = '100%';
+          progressBarFill.classList.add('error');
+        }
+        if (progressPercent) progressPercent.textContent = 'Error';
+        if (progressTitle) progressTitle.innerHTML = `❌ Re-index Failed`;
+        if (progressStatus) progressStatus.textContent = err;
         showToast(`Re-index failed: ${err}`, 'error');
+        if (btnReindex) {
+          btnReindex.disabled = false;
+          btnReindex.textContent = '🔄 Re-index';
+        }
+        if (btnDelete) btnDelete.disabled = false;
       }
     } catch (e) {
+      clearInterval(stepInterval);
+      if (progressBarFill) {
+        progressBarFill.style.width = '100%';
+        progressBarFill.classList.add('error');
+      }
+      if (progressPercent) progressPercent.textContent = 'Error';
+      if (progressTitle) progressTitle.innerHTML = `❌ Re-index Error`;
+      if (progressStatus) progressStatus.textContent = e.message;
       showToast(`Error: ${e.message}`, 'error');
+      if (btnReindex) {
+        btnReindex.disabled = false;
+        btnReindex.textContent = '🔄 Re-index';
+      }
+      if (btnDelete) btnDelete.disabled = false;
     }
   }
 
@@ -458,26 +550,30 @@
   function renderUploadQueue() {
     const queue = document.getElementById('upload-queue');
     const btn = document.getElementById('btn-process-upload');
+    const progressContainer = document.getElementById('indexing-progress-container');
     queue.innerHTML = '';
 
     if (state.selectedUploadFiles.length === 0) {
       btn.style.display = 'none';
+      if (progressContainer) progressContainer.style.display = 'none';
       return;
     }
 
     btn.style.display = 'inline-flex';
+    btn.disabled = false;
     btn.textContent = `🚀 Process & Ingest ${state.selectedUploadFiles.length} File(s)`;
 
     state.selectedUploadFiles.forEach((f, idx) => {
       const item = document.createElement('div');
       item.className = 'file-queue-item';
       item.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <span>📄</span>
           <strong>${escapeHtml(f.name)}</strong>
           <span style="color: var(--text-muted); font-size: 12px;">(${(f.size / 1024).toFixed(1)} KB)</span>
+          <span id="file-queue-status-${idx}" class="queue-status-badge badge-pending">Pending</span>
         </div>
-        <button class="btn btn-secondary btn-sm" style="padding: 2px 8px;" onclick="window.__ragApp.removeUploadFile(${idx})">✕</button>
+        <button id="file-queue-remove-${idx}" class="btn btn-secondary btn-sm" style="padding: 2px 8px;" onclick="window.__ragApp.removeUploadFile(${idx})">✕</button>
       `;
       queue.appendChild(item);
     });
@@ -489,37 +585,166 @@
   }
 
   async function uploadFiles() {
-    if (state.selectedUploadFiles.length === 0) return;
+    const totalFiles = state.selectedUploadFiles.length;
+    if (totalFiles === 0) return;
+
     const btn = document.getElementById('btn-process-upload');
+    const progressContainer = document.getElementById('indexing-progress-container');
+    const progressTitle = document.getElementById('indexing-progress-title');
+    const progressPercent = document.getElementById('indexing-progress-percent');
+    const progressBarFill = document.getElementById('indexing-progress-bar-fill');
+    const progressStatus = document.getElementById('indexing-progress-status');
+
     btn.disabled = true;
-    btn.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span> Processing & Indexing...`;
+    btn.innerHTML = `<span class="spinner-sm"></span> Indexing Documents...`;
 
-    const formData = new FormData();
-    state.selectedUploadFiles.forEach(f => {
-      formData.append('files', f);
-    });
+    // Disable all remove buttons in the queue during processing
+    for (let j = 0; j < totalFiles; j++) {
+      const remBtn = document.getElementById(`file-queue-remove-${j}`);
+      if (remBtn) remBtn.disabled = true;
+    }
 
-    try {
-      const resp = await fetch(`${API_BASE_URL}/documents/upload`, {
-        method: 'POST',
-        body: formData
-      });
-      if (resp.ok) {
-        const res = await resp.json();
-        showToast(`Successfully processed and indexed ${res.documents?.length || state.selectedUploadFiles.length} document(s)!`, 'success');
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressBarFill) {
+      progressBarFill.className = 'indexing-progress-bar-fill';
+      progressBarFill.style.width = '0%';
+    }
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressTitle) progressTitle.innerHTML = `<span class="spinner-sm"></span> Indexing ${totalFiles} Document(s)...`;
+    if (progressStatus) progressStatus.textContent = 'Initializing indexing pipeline...';
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < totalFiles; i++) {
+      const file = state.selectedUploadFiles[i];
+      const statusBadge = document.getElementById(`file-queue-status-${i}`);
+      if (statusBadge) {
+        statusBadge.className = 'queue-status-badge badge-info';
+        statusBadge.innerHTML = `<span class="spinner-sm"></span> Indexing...`;
+      }
+
+      const fileStartPct = Math.round((i / totalFiles) * 100);
+      const fileEndPct = Math.round(((i + 1) / totalFiles) * 100);
+      const fileRange = fileEndPct - fileStartPct;
+
+      if (progressTitle) {
+        progressTitle.innerHTML = `<span class="spinner-sm"></span> Indexing [${i + 1}/${totalFiles}]: <strong>${escapeHtml(file.name)}</strong>`;
+      }
+
+      // Smooth step simulation through pipeline phases while waiting for the server
+      let currentFilePct = fileStartPct + Math.max(1, Math.floor(fileRange * 0.15));
+      if (progressBarFill) progressBarFill.style.width = `${currentFilePct}%`;
+      if (progressPercent) progressPercent.textContent = `${currentFilePct}%`;
+      if (progressStatus) progressStatus.textContent = `[${i + 1}/${totalFiles}] Uploading and validating ${escapeHtml(file.name)}...`;
+
+      const stepInterval = setInterval(() => {
+        const maxSimPct = fileStartPct + Math.floor(fileRange * 0.88);
+        if (currentFilePct < maxSimPct) {
+          currentFilePct += Math.max(1, Math.floor(fileRange * 0.08));
+          if (currentFilePct > maxSimPct) currentFilePct = maxSimPct;
+          if (progressBarFill) progressBarFill.style.width = `${currentFilePct}%`;
+          if (progressPercent) progressPercent.textContent = `${currentFilePct}%`;
+
+          const relativeStep = (currentFilePct - fileStartPct) / (fileRange || 1);
+          if (relativeStep >= 0.3 && relativeStep < 0.6) {
+            if (progressStatus) progressStatus.textContent = `[${i + 1}/${totalFiles}] Parsing text structure & generating semantic chunks for ${escapeHtml(file.name)}...`;
+          } else if (relativeStep >= 0.6 && relativeStep < 0.8) {
+            if (progressStatus) progressStatus.textContent = `[${i + 1}/${totalFiles}] Computing neural vector embeddings (nomic-embed-text) for ${escapeHtml(file.name)}...`;
+          } else if (relativeStep >= 0.8) {
+            if (progressStatus) progressStatus.textContent = `[${i + 1}/${totalFiles}] Writing vectors to ChromaDB & indexing BM25 keywords for ${escapeHtml(file.name)}...`;
+          }
+        }
+      }, 350);
+
+      const formData = new FormData();
+      formData.append('files', file);
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/documents/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        clearInterval(stepInterval);
+
+        if (resp.ok) {
+          successCount++;
+          if (progressBarFill) progressBarFill.style.width = `${fileEndPct}%`;
+          if (progressPercent) progressPercent.textContent = `${fileEndPct}%`;
+          if (statusBadge) {
+            statusBadge.className = 'queue-status-badge badge-success';
+            statusBadge.textContent = '✅ Indexed';
+          }
+        } else {
+          failCount++;
+          const err = await resp.text();
+          if (statusBadge) {
+            statusBadge.className = 'queue-status-badge badge-danger';
+            statusBadge.textContent = '❌ Failed';
+          }
+          if (progressStatus) {
+            progressStatus.textContent = `Failed to index ${escapeHtml(file.name)}: ${escapeHtml(err)}`;
+          }
+        }
+      } catch (err) {
+        clearInterval(stepInterval);
+        failCount++;
+        if (statusBadge) {
+          statusBadge.className = 'queue-status-badge badge-danger';
+          statusBadge.textContent = '❌ Failed';
+        }
+        if (progressStatus) {
+          progressStatus.textContent = `Error indexing ${escapeHtml(file.name)}: ${escapeHtml(err.message)}`;
+        }
+      }
+    }
+
+    // Final summary state
+    if (failCount === 0) {
+      if (progressBarFill) {
+        progressBarFill.style.width = '100%';
+        progressBarFill.classList.add('success');
+      }
+      if (progressPercent) progressPercent.textContent = '100%';
+      if (progressTitle) progressTitle.innerHTML = `✅ Successfully Indexed All ${successCount} Document(s)!`;
+      if (progressStatus) progressStatus.textContent = 'All documents chunked, embedded, and stored in ChromaDB and BM25.';
+      showToast(`Successfully indexed ${successCount} document(s)!`, 'success');
+
+      setTimeout(() => {
         state.selectedUploadFiles = [];
         renderUploadQueue();
         loadDocumentsList();
         loadDashboardData();
-      } else {
-        const err = await resp.text();
-        showToast(`Upload failed: ${err}`, 'error');
+      }, 2000);
+    } else if (successCount > 0) {
+      if (progressBarFill) {
+        progressBarFill.style.width = '100%';
+        progressBarFill.classList.add('success');
       }
-    } catch (e) {
-      showToast(`Error communicating with backend: ${e.message}`, 'error');
-    } finally {
+      if (progressPercent) progressPercent.textContent = '100%';
+      if (progressTitle) progressTitle.innerHTML = `⚠️ Completed: ${successCount} Indexed, ${failCount} Failed`;
+      showToast(`Completed with warnings: ${successCount} indexed, ${failCount} failed.`, 'warning');
+
+      setTimeout(() => {
+        state.selectedUploadFiles = [];
+        renderUploadQueue();
+        loadDocumentsList();
+        loadDashboardData();
+      }, 3000);
+    } else {
+      if (progressBarFill) {
+        progressBarFill.style.width = '100%';
+        progressBarFill.classList.add('error');
+      }
+      if (progressPercent) progressPercent.textContent = 'Failed';
+      if (progressTitle) progressTitle.innerHTML = `❌ Document Indexing Failed`;
+      showToast('Document indexing failed. Please verify file formats and backend status.', 'error');
       btn.disabled = false;
-      renderUploadQueue();
+      btn.textContent = `🚀 Retry Ingestion (${state.selectedUploadFiles.length} Files)`;
+      for (let j = 0; j < totalFiles; j++) {
+        const remBtn = document.getElementById(`file-queue-remove-${j}`);
+        if (remBtn) remBtn.disabled = false;
+      }
     }
   }
 

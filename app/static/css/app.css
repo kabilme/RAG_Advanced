@@ -564,6 +564,138 @@ html, body {
   font-size: 13.5px;
 }
 
+/* Indexing & Re-indexing Progress Bar */
+.indexing-progress-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin-top: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.25s ease;
+}
+
+.indexing-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.indexing-progress-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indexing-progress-percent {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-bright);
+  font-family: var(--font-mono);
+}
+
+.indexing-progress-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: var(--bg-input);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.indexing-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #0284c7 100%);
+  background-size: 200% 100%;
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: progressShimmer 2s linear infinite;
+}
+
+.indexing-progress-bar-fill.success {
+  background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+}
+
+.indexing-progress-bar-fill.error {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+@keyframes progressShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.indexing-progress-status {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Spinner small */
+.spinner-sm {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent-bright);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+[data-theme="light"] .spinner-sm {
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--accent);
+}
+
+/* Queue item status badges */
+.queue-status-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-pending {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.badge-info {
+  background: var(--accent-bg);
+  color: var(--accent-bright);
+  border: 1px solid var(--border-accent);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* Grounded Chat Interface */
 .chat-container {
   display: flex;

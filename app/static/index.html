@@ -1205,6 +1205,22 @@ html, body {
                 🚀 Process & Ingest Files
               </button>
             </div>
+
+            <!-- Indexing Progress Container -->
+            <div id="indexing-progress-container" class="indexing-progress-box" style="display: none;">
+              <div class="indexing-progress-header">
+                <span class="indexing-progress-title" id="indexing-progress-title">
+                  <span class="spinner-sm"></span> Indexing in progress...
+                </span>
+                <span class="indexing-progress-percent" id="indexing-progress-percent">0%</span>
+              </div>
+              <div class="indexing-progress-bar-bg">
+                <div class="indexing-progress-bar-fill" id="indexing-progress-bar-fill" style="width: 0%;"></div>
+              </div>
+              <div class="indexing-progress-status" id="indexing-progress-status">
+                Preparing files for processing...
+              </div>
+            </div>
           </div>
 
           <div class="card-box">
