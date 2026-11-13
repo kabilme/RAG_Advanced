@@ -1046,7 +1046,7 @@
 
   function updateWidgetPreview() {
     const title = document.getElementById('widget-title')?.value || 'Document Assistant';
-    const subtitle = document.getElementById('widget-subtitle')?.value || 'Offline Grounded Knowledge';
+    const subtitle = document.getElementById('widget-subtitle')?.value || 'Offline Document Assistant';
     const color = document.getElementById('widget-color')?.value || '#0284c7';
     const position = document.getElementById('widget-position')?.value || 'bottom-right';
     const greeting = document.getElementById('widget-greeting')?.value || 'Hello! Ask me questions about your uploaded documents.';

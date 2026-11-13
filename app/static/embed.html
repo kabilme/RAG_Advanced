@@ -477,7 +477,7 @@
           <span class="rag-header-title" id="botTitle">Document Assistant</span>
           <span class="rag-header-subtitle">
             <span class="rag-indicator-pill" id="statusPill"></span>
-            <span id="statusText">Local RAG • Grounded</span>
+            <span id="statusText">Online</span>
           </span>
         </div>
       </div>
@@ -505,9 +505,6 @@
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
           </svg>
         </button>
-      </div>
-      <div class="rag-footer">
-        🔒 Private Offline RAG • Strictly Document-Grounded
       </div>
     </div>
   </div>
@@ -732,15 +729,18 @@
             const data = await resp.json();
             if (data.ollama_connected) {
               statusPill.classList.remove("offline");
-              statusText.textContent = `${data.configured_model} • Grounded`;
+              statusText.textContent = "Online";
             } else {
               statusPill.classList.add("offline");
-              statusText.textContent = "Ollama Offline";
+              statusText.textContent = "Offline";
             }
+          } else {
+            statusPill.classList.add("offline");
+            statusText.textContent = "Offline";
           }
         } catch(e) {
           statusPill.classList.add("offline");
-          statusText.textContent = "Backend Unreachable";
+          statusText.textContent = "Offline";
         }
       }
 

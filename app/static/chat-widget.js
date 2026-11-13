@@ -188,7 +188,8 @@
           box-shadow: 0 0 6px #22c55e;
         }
 
-        .rag-status-dot.offline {
+        .rag-status-dot.offline,
+        .rag-indicator-pill.offline {
           background: #ef4444;
           box-shadow: 0 0 6px #ef4444;
         }
@@ -701,7 +702,7 @@
                 <span class="rag-header-title">${this.config.title}</span>
                 <span class="rag-header-subtitle">
                   <span class="rag-indicator-pill"></span>
-                  <span class="rag-status-text">Local RAG • Grounded</span>
+                  <span class="rag-status-text">Online</span>
                 </span>
               </div>
             </div>
@@ -734,9 +735,6 @@
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                 </svg>
               </button>
-            </div>
-            <div class="rag-footer">
-              🔒 Private Offline RAG • Strictly Document-Grounded
             </div>
           </div>
         </div>
@@ -797,25 +795,42 @@
 
     async checkHealth() {
       const statusDot = this.shadow.querySelector(".rag-status-dot");
+      const statusPill = this.shadow.querySelector(".rag-indicator-pill");
       const statusText = this.shadow.querySelector(".rag-status-text");
       try {
         const resp = await fetch(`${this.config.apiUrl}/health`, { method: "GET" });
         if (resp.ok) {
           const data = await resp.json();
           if (data.ollama_connected) {
-            statusDot.classList.remove("offline");
-            statusDot.title = `Ollama Connected: ${data.configured_model}`;
-            if (statusText) statusText.textContent = `${data.configured_model} • Grounded`;
+            if (statusDot) {
+              statusDot.classList.remove("offline");
+              statusDot.title = "Online";
+            }
+            if (statusPill) statusPill.classList.remove("offline");
+            if (statusText) statusText.textContent = "Online";
           } else {
-            statusDot.classList.add("offline");
-            statusDot.title = "Ollama model disconnected";
+            if (statusDot) {
+              statusDot.classList.add("offline");
+              statusDot.title = "Offline";
+            }
+            if (statusPill) statusPill.classList.add("offline");
+            if (statusText) statusText.textContent = "Offline";
           }
         } else {
-          statusDot.classList.add("offline");
+          if (statusDot) {
+            statusDot.classList.add("offline");
+            statusDot.title = "Offline";
+          }
+          if (statusPill) statusPill.classList.add("offline");
+          if (statusText) statusText.textContent = "Offline";
         }
       } catch (err) {
-        statusDot.classList.add("offline");
-        statusDot.title = "Backend unreachable at " + this.config.apiUrl;
+        if (statusDot) {
+          statusDot.classList.add("offline");
+          statusDot.title = "Offline";
+        }
+        if (statusPill) statusPill.classList.add("offline");
+        if (statusText) statusText.textContent = "Offline";
       }
     }
 

@@ -18,6 +18,9 @@ def test_widget_script_endpoint():
     assert "/chat/stream" in text
     assert "<h3>$1</h3>" in text
     assert "rag-msg-bubble h3" in text
+    # Verify no model name, no "Grounded" text in status, and no bottom disclaimer
+    assert "• Grounded" not in text
+    assert "Strictly Document-Grounded" not in text
 
 
 def test_static_mounted_script():
@@ -25,6 +28,8 @@ def test_static_mounted_script():
     resp = client.get("/static/chat-widget.js")
     assert resp.status_code == 200
     assert "RAGChatWidget" in resp.text
+    assert "• Grounded" not in resp.text
+    assert "Strictly Document-Grounded" not in resp.text
 
 
 def test_widget_embed_endpoint():
@@ -36,6 +41,9 @@ def test_widget_embed_endpoint():
     assert "chatInput" in resp.text
     assert "<h3>$1</h3>" in resp.text
     assert "no-cache" in resp.headers["cache-control"]
+    # Verify no model name, no "Grounded" text in status, and no bottom disclaimer
+    assert "• Grounded" not in resp.text
+    assert "Strictly Document-Grounded" not in resp.text
 
 
 def test_static_mounted_embed():
